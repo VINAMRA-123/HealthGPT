@@ -1,0 +1,558 @@
+<main class="dashboard">
+  <header class="topbar">
+    <div>
+      <h1>HealthGPT</h1>
+      <p>Your personal health and nutrition assistant</p>
+    </div>
+    <button type="button" class="logout-btn" (click)="signOut()">
+      Sign out
+    </button>
+  </header>
+
+  <section class="welcome">
+    <p class="eyebrow">YOUR HEALTH JOURNEY</p>
+    <h2>Welcome to your dashboard!</h2>
+    <p>Build healthier habits, one day at a time.</p>
+  </section>
+
+  <div *ngIf="loading" class="feedback" role="status">
+    Loading your health profile...
+  </div>
+
+  <div *ngIf="error" class="feedback error" role="alert">
+    {{ error }}
+    <button type="button" class="retry-btn" (click)="loadDashboard()">
+      Try again
+    </button>
+  </div>
+
+  <ng-container *ngIf="profile && !loading">
+    <section class="profile-grid">
+      <article class="info-card">
+        <h3>Your health goals</h3>
+        <p>{{ profile.goals }}</p>
+      </article>
+
+      <article class="info-card">
+        <h3>Dietary preferences</h3>
+        <p>{{ profile.dietary_preferences }}</p>
+      </article>
+
+      <article class="info-card">
+        <h3>Daily food budget</h3>
+        <p class="budget">₹{{ profile.daily_budget }}</p>
+      </article>
+    </section>
+
+    <section class="nutrition-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">YOUR DAILY OVERVIEW</p>
+          <h2>Today's nutrition</h2>
+          <p *ngIf="nutrition">
+            {{ nutrition.date }} · {{ nutrition.timezone }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="retry-btn"
+          (click)="loadNutritionSummary()"
+          [disabled]="nutritionLoading"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div *ngIf="nutritionLoading" class="feedback" role="status">
+        Loading your nutrition summary...
+      </div>
+
+      <div *ngIf="nutritionError" class="feedback error" role="alert">
+        {{ nutritionError }}
+        <button
+          type="button"
+          class="retry-btn"
+          (click)="loadNutritionSummary()"
+        >
+          Try again
+        </button>
+      </div>
+
+      <ng-container *ngIf="nutrition && !nutritionLoading">
+
+<div class="nutrition-grid">
+  <!-- Calories -->
+  <article class="info-card nutrition-card">
+    <h3>Calories</h3>
+    <p class="nutrition-value">
+      {{ nutrition.consumed.calories | number:'1.0-0' }}
+      <span>kcal</span>
+    </p>
+    <p class="target-text">
+      of {{ nutrition.targets.calories ?? '—' }} kcal target
+    </p>
+    <div class="progress-track" role="progressbar"
+      aria-label="Calorie target progress"
+      [attr.aria-valuenow]="nutrition.progress_percent.calories ?? 0"
+      aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-fill calories-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.calories)">
+      </div>
+    </div>
+    <p class="progress-label" *ngIf="nutrition.progress_percent.calories !== null">
+      {{ nutrition.progress_percent.calories | number:'1.0-0' }}% of target
+    </p>
+    <p class="progress-label" *ngIf="nutrition.targets.calories == null">
+      Set a daily calorie target in your profile.
+    </p>
+    <p class="remaining-text" *ngIf="nutrition.remaining.calories !== null">
+      {{ nutrition.remaining.calories | number:'1.0-0' }} kcal remaining
+    </p>
+  </article>
+
+  <!-- Protein -->
+  <article class="info-card nutrition-card">
+    <h3>Protein</h3>
+    <p class="nutrition-value">
+      {{ nutrition.consumed.protein_g | number:'1.0-1' }}
+      <span>g</span>
+    </p>
+    <p class="target-text">
+      of {{ nutrition.targets.protein_g ?? '—' }} g target
+    </p>
+    <div class="progress-track" role="progressbar"
+      aria-label="Protein target progress"
+      [attr.aria-valuenow]="nutrition.progress_percent.protein_g ?? 0"
+      aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-fill protein-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.protein_g)">
+      </div>
+    </div>
+    <p class="progress-label" *ngIf="nutrition.progress_percent.protein_g !== null">
+      {{ nutrition.progress_percent.protein_g | number:'1.0-0' }}% of target
+    </p>
+    <p class="progress-label" *ngIf="nutrition.targets.protein_g == null">
+      Set a daily protein target in your profile.
+    </p>
+    <p class="remaining-text" *ngIf="nutrition.remaining.protein_g !== null">
+      {{ nutrition.remaining.protein_g | number:'1.0-1' }} g remaining
+    </p>
+  </article>
+
+  <!-- Carbohydrates -->
+  <article class="info-card nutrition-card">
+    <h3>Carbohydrates</h3>
+    <p class="nutrition-value">
+      {{ nutrition.consumed.carbs_g | number:'1.0-1' }}
+      <span>g</span>
+    </p>
+    <p class="target-text">
+      of {{ nutrition.targets.carbs_g ?? '—' }} g target
+    </p>
+    <div class="progress-track" role="progressbar"
+      aria-label="Carbohydrate target progress"
+      [attr.aria-valuenow]="nutrition.progress_percent.carbs_g ?? 0"
+      aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-fill carbs-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.carbs_g)">
+      </div>
+    </div>
+    <p class="progress-label" *ngIf="nutrition.progress_percent.carbs_g !== null">
+      {{ nutrition.progress_percent.carbs_g | number:'1.0-0' }}% of target
+    </p>
+    <p class="progress-label" *ngIf="nutrition.targets.carbs_g == null">
+      Set a daily carbohydrate target in your profile.
+    </p>
+    <p class="remaining-text" *ngIf="nutrition.remaining.carbs_g !== null">
+      {{ nutrition.remaining.carbs_g | number:'1.0-1' }} g remaining
+    </p>
+  </article>
+
+  <!-- Fat -->
+  <article class="info-card nutrition-card">
+    <h3>Fat</h3>
+    <p class="nutrition-value">
+      {{ nutrition.consumed.fat_g | number:'1.0-1' }}
+      <span>g</span>
+    </p>
+    <p class="target-text">
+      of {{ nutrition.targets.fat_g ?? '—' }} g target
+    </p>
+    <div class="progress-track" role="progressbar"
+      aria-label="Fat target progress"
+      [attr.aria-valuenow]="nutrition.progress_percent.fat_g ?? 0"
+      aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-fill fat-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.fat_g)">
+      </div>
+    </div>
+    <p class="progress-label" *ngIf="nutrition.progress_percent.fat_g !== null">
+      {{ nutrition.progress_percent.fat_g | number:'1.0-0' }}% of target
+    </p>
+    <p class="progress-label" *ngIf="nutrition.targets.fat_g == null">
+      Set a daily fat target in your profile.
+    </p>
+    <p class="remaining-text" *ngIf="nutrition.remaining.fat_g !== null">
+      {{ nutrition.remaining.fat_g | number:'1.0-1' }} g remaining
+    </p>
+  </article>
+
+  <!-- Food spending -->
+  <article class="info-card nutrition-card">
+    <h3>Food spending</h3>
+    <p class="nutrition-value">
+      ₹{{ nutrition.cost | number:'1.0-2' }}
+    </p>
+    <p class="target-text">
+      Daily budget: ₹{{ profile.daily_budget }}
+    </p>
+    <p class="remaining-text">
+      ₹{{ getBudgetRemaining() | number:'1.0-2' }} budget remaining
+    </p>
+  </article>
+
+  <!-- Meals logged -->
+  <article class="info-card nutrition-card">
+    <h3>Meals logged</h3>
+    <p class="nutrition-value">{{ nutrition.meal_count }}</p>
+    <p class="target-text">Meals recorded today</p>
+  </article>
+</div>
+
+<!-- Daily macronutrient target progress -->
+<div class="macro-targets" *ngIf="nutrition">
+
+  <div class="macro-target-card">
+    <div class="macro-target-heading">
+      <span>Protein</span>
+      <strong>
+        {{ nutrition.consumed.protein_g | number:'1.0-1' }}g
+        /
+        {{ nutrition.targets.protein_g ?? '—' }}g
+      </strong>
+    </div>
+
+    <div class="target-progress-track">
+      <div
+        class="target-progress-fill protein-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.protein_g)">
+      </div>
+    </div>
+
+    <small *ngIf="nutrition.remaining.protein_g !== null">
+      {{ nutrition.remaining.protein_g | number:'1.0-1' }}g remaining
+    </small>
+    <small *ngIf="nutrition.targets.protein_g === null">
+      Set a protein target in your profile.
+    </small>
+  </div>
+
+  <div class="macro-target-card">
+    <div class="macro-target-heading">
+      <span>Carbohydrates</span>
+      <strong>
+        {{ nutrition.consumed.carbs_g | number:'1.0-1' }}g
+        /
+        {{ nutrition.targets.carbs_g ?? '—' }}g
+      </strong>
+    </div>
+
+    <div class="target-progress-track">
+      <div
+        class="target-progress-fill carbs-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.carbs_g)">
+      </div>
+    </div>
+
+    <small *ngIf="nutrition.remaining.carbs_g !== null">
+      {{ nutrition.remaining.carbs_g | number:'1.0-1' }}g remaining
+    </small>
+    <small *ngIf="nutrition.targets.carbs_g === null">
+      Set a carbohydrate target in your profile.
+    </small>
+  </div>
+
+  <div class="macro-target-card">
+    <div class="macro-target-heading">
+      <span>Fat</span>
+      <strong>
+        {{ nutrition.consumed.fat_g | number:'1.0-1' }}g
+        /
+        {{ nutrition.targets.fat_g ?? '—' }}g
+      </strong>
+    </div>
+
+    <div class="target-progress-track">
+      <div
+        class="target-progress-fill fat-fill"
+        [style.width.%]="getProgressWidth(nutrition.progress_percent.fat_g)">
+      </div>
+    </div>
+
+    <small *ngIf="nutrition.remaining.fat_g !== null">
+      {{ nutrition.remaining.fat_g | number:'1.0-1' }}g remaining
+    </small>
+    <small *ngIf="nutrition.targets.fat_g === null">
+      Set a fat target in your profile.
+    </small>
+  </div>
+
+</div>
+
+      </ng-container>
+    </section>
+
+<section class="weekly-section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">YOUR WEEK AT A GLANCE</p>
+      <h2>7-day calorie trend</h2>
+      <p>Daily calories consumed compared with your target.</p>
+    </div>
+
+    <button
+      type="button"
+      class="retry-btn"
+      (click)="loadWeeklySummary()"
+      [disabled]="weeklyLoading"
+    >
+      Refresh
+    </button>
+  </div>
+
+  <div *ngIf="weeklyLoading" class="feedback" role="status">
+    Loading weekly nutrition...
+  </div>
+
+  <div *ngIf="weeklyError" class="feedback error" role="alert">
+    {{ weeklyError }}
+    <button type="button" class="retry-btn" (click)="loadWeeklySummary()">
+      Try again
+    </button>
+  </div>
+
+  <div
+    class="weekly-chart"
+    *ngIf="weeklyNutrition && !weeklyLoading"
+    role="img"
+    aria-label="Bar chart comparing daily calories consumed with the calorie target for the last seven days"
+  >
+    <div class="chart-legend">
+      <span><i class="legend-swatch consumed-swatch"></i>Consumed</span>
+      <span><i class="legend-swatch target-swatch"></i>Target</span>
+    </div>
+
+    <div class="chart-bars">
+      <div class="chart-day" *ngFor="let day of weeklyNutrition.days">
+        <div class="bar-values">
+          <span>{{ day.calories | number:'1.0-0' }}</span>
+        </div>
+
+        <div class="bar-area">
+          <div
+            class="target-line"
+            [style.bottom.%]="day.calorie_target
+              ? Math.min(day.calorie_target / chartScale * 100, 100)
+              : 0"
+          ></div>
+
+          <div
+            class="consumed-bar"
+            [style.height.%]="Math.min(day.calories / chartScale * 100, 100)"
+            [title]="day.calories + ' kcal consumed'"
+          ></div>
+        </div>
+
+        <span class="chart-date">{{ day.date | date:'EEE' }}</span>
+        <span class="chart-date">{{ day.date | date:'dd MMM' }}</span>
+      </div>
+    </div>
+
+    <p class="chart-note">
+      Target: {{ weeklyNutrition.days[weeklyNutrition.days.length - 1]?.calorie_target ?? 'Not set' }}
+      <span *ngIf="weeklyNutrition.days[weeklyNutrition.days.length - 1]?.calorie_target">
+        kcal/day
+      </span>
+    </p>
+  </div>
+</section>
+
+<section class="weekly-section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">YOUR FOOD BUDGET</p>
+      <h2>7-day spending trend</h2>
+      <p>Track how much you spend on food each day.</p>
+    </div>
+  </div>
+
+  <div
+    class="weekly-chart"
+    *ngIf="weeklyNutrition && !weeklyLoading"
+    role="img"
+    aria-label="Bar chart showing daily food spending over the last seven days"
+  >
+    <div class="chart-legend">
+      <span>
+        <i class="legend-swatch consumed-swatch"></i>
+        Daily spending
+      </span>
+    </div>
+
+    <div class="chart-bars">
+      <div class="chart-day" *ngFor="let day of weeklyNutrition.days">
+        <div class="bar-values">
+          ₹{{ day.cost | number:'1.0-0' }}
+        </div>
+
+        <div class="bar-area">
+          <div
+            class="consumed-bar spending-bar"
+            [style.height.%]="getSpendingBarHeight(day.cost)"
+            [title]="'₹' + day.cost + ' spent'"
+          ></div>
+        </div>
+
+        <span class="chart-date">{{ day.date | date:'EEE' }}</span>
+        <span class="chart-date">{{ day.date | date:'dd MMM' }}</span>
+      </div>
+    </div>
+
+    <p class="chart-note">
+      Total spent this week:
+      <strong>₹{{ getWeeklySpending() | number:'1.0-2' }}</strong>
+    </p>
+  </div>
+
+  <p *ngIf="weeklyError" class="feedback error" role="alert">
+    {{ weeklyError }}
+  </p>
+</section>
+
+<section class="weekly-section">
+  <div class="section-heading">
+    <div>
+      <h2>Weekly Macronutrient Trends</h2>
+      <p>Track your protein, carbs, and fat intake over seven days.</p>
+    </div>
+  </div>
+
+  <div *ngIf="weeklyLoading" class="chart-note">
+    Loading macronutrient trends...
+  </div>
+
+  <div *ngIf="weeklyError" class="error-message">
+    {{ weeklyError }}
+  </div>
+
+  <div *ngIf="!weeklyLoading && !weeklyError && weeklyNutrition">
+
+    <!-- Protein -->
+    <div class="macro-chart">
+      <div class="macro-heading">
+        <h3>Protein</h3>
+        <span>Grams per day</span>
+      </div>
+
+      <div class="macro-bars">
+        <div class="macro-day" *ngFor="let day of weeklyNutrition.days">
+          <span class="macro-value">{{ day.protein_g | number:'1.0-1' }}g</span>
+          <div class="macro-bar-area">
+            <div
+              class="macro-bar protein-bar"
+              [style.height.%]="getMacroBarHeight(day.protein_g, 'protein_g')">
+            </div>
+          </div>
+          <span class="chart-date">{{ day.date | date:'EEE' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carbohydrates -->
+    <div class="macro-chart">
+      <div class="macro-heading">
+        <h3>Carbohydrates</h3>
+        <span>Grams per day</span>
+      </div>
+
+      <div class="macro-bars">
+        <div class="macro-day" *ngFor="let day of weeklyNutrition.days">
+          <span class="macro-value">{{ day.carbs_g | number:'1.0-1' }}g</span>
+          <div class="macro-bar-area">
+            <div
+              class="macro-bar carbs-bar"
+              [style.height.%]="getMacroBarHeight(day.carbs_g, 'carbs_g')">
+            </div>
+          </div>
+          <span class="chart-date">{{ day.date | date:'EEE' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fat -->
+    <div class="macro-chart">
+      <div class="macro-heading">
+        <h3>Fat</h3>
+        <span>Grams per day</span>
+      </div>
+
+      <div class="macro-bars">
+        <div class="macro-day" *ngFor="let day of weeklyNutrition.days">
+          <span class="macro-value">{{ day.fat_g | number:'1.0-1' }}g</span>
+          <div class="macro-bar-area">
+            <div
+              class="macro-bar fat-bar"
+              [style.height.%]="getMacroBarHeight(day.fat_g, 'fat_g')">
+            </div>
+          </div>
+          <span class="chart-date">{{ day.date | date:'EEE' }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+
+    <section class="next-steps">
+      <h2>Your HealthGPT tools</h2>
+      <p class="section-description">
+        Track your meals and keep your health information up to date.
+      </p>
+
+      <article class="feature-card">
+        <div>
+          <h3>Meal tracking</h3>
+          <p>Record meals and track daily nutrition and food spending.</p>
+        </div>
+        <a routerLink="/meals" class="action-link">Track meals →</a>
+      </article>
+      <article class="feature-card">
+        <div>
+          <h3>Chat</h3>
+          <p>Chat with HealthGPT and view your conversation history.</p>
+        </div>
+        <a routerLink="/chat" class="action-link">Open HealthGPT Chat →</a>
+      </article>
+
+      <article class="feature-card">
+        <div>
+          <h3>AI health assistant</h3>
+          <p>Personalized nutrition guidance is planned for a future update.</p>
+        </div>
+        <span class="coming-soon">Coming soon</span>
+      </article>
+
+      <article class="feature-card">
+        <div>
+          <h3>Health goals</h3>
+          <p>Keep your personal health goals and dietary preferences updated.</p>
+        </div>
+        <button type="button" class="action-link" (click)="editProfile()">
+          Edit profile →
+        </button>
+      </article>
+    </section>
+  </ng-container>
+</main>

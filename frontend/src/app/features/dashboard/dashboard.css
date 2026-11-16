@@ -1,0 +1,570 @@
+
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f4f7fb;
+  color: #1f2937;
+  font-family: Arial, sans-serif;
+}
+
+.dashboard {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+
+.topbar h1 {
+  margin: 0;
+  color: #2563eb;
+}
+
+.topbar p,
+.welcome p,
+.info-card p,
+.feature-card p {
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.welcome {
+  padding: 32px;
+  margin-bottom: 24px;
+  background: #e8efff;
+  border-radius: 18px;
+}
+
+.welcome h2 {
+  margin: 8px 0;
+  font-size: 28px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #2563eb !important;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.info-card,
+.feature-card {
+  padding: 24px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+.info-card h3,
+.feature-card h3 {
+  margin-top: 0;
+}
+
+.budget {
+  font-size: 26px;
+  font-weight: 700;
+  color: #15803d !important;
+}
+
+.next-steps {
+  margin-top: 36px;
+}
+
+.feature-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.feature-card span {
+  color: #64748b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+button {
+  padding: 11px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.logout-btn {
+  background: #475569;
+}
+
+.edit-btn {
+  margin-top: 12px;
+}
+
+.feedback {
+  padding: 12px;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+@media (max-width: 600px) {
+  .dashboard {
+    padding: 20px 14px;
+  }
+
+  .welcome {
+    padding: 22px;
+  }
+
+  .welcome h2 {
+    font-size: 23px;
+  }
+
+  .feature-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+.nutrition-section {
+  margin: 2rem 0;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-heading h2 {
+  margin: 0.25rem 0;
+}
+
+.nutrition-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.nutrition-card h3 {
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.nutrition-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+
+.nutrition-value span {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.action-link {
+  display: inline-block;
+  border: none;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .section-heading {
+    align-items: flex-start;
+  }
+
+  .nutrition-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.target-text {
+  margin: 8px 0 12px;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+.calories-fill {
+  background: #2563eb;
+}
+
+.protein-fill {
+  background: #16a34a;
+}
+
+.carbs-fill {
+  background: #d97706;
+}
+
+.fat-fill {
+  background: #9333ea;
+}
+
+.progress-label {
+  margin: 9px 0 0;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.remaining-text {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.nutrition-card {
+  min-width: 0;
+}
+
+.nutrition-card .nutrition-value {
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill {
+    transition: none;
+  }
+}
+
+
+.weekly-section {
+  margin: 36px 0;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 24px 0 12px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.chart-legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.consumed-swatch {
+  background: #2563eb;
+}
+
+.target-swatch {
+  background: #f59e0b;
+}
+
+.chart-bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 220px;
+  align-items: end;
+}
+
+.chart-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
+}
+
+.bar-values {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bar-area {
+  position: relative;
+  width: min(100%, 48px);
+  height: 160px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border-radius: 6px 6px 0 0;
+  background: #f1f5f9;
+}
+
+.consumed-bar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 0;
+  background: #2563eb;
+  border-radius: 5px 5px 0 0;
+  transition: height 0.3s ease;
+}
+
+.target-line {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #f59e0b;
+}
+
+.chart-date {
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+
+.chart-note {
+  margin-top: 18px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .weekly-section {
+    padding: 16px 10px;
+  }
+
+  .chart-bars {
+    gap: 5px;
+  }
+
+  .bar-area {
+    width: 80%;
+    height: 130px;
+  }
+
+  .chart-date {
+    font-size: 10px;
+  }
+
+  .bar-values {
+    font-size: 10px;
+  }
+}
+
+.spending-bar {
+  background: #16a34a;
+}
+
+
+.macro-chart {
+  margin-top: 24px;
+  padding: 20px;
+  background: var(--card-background, #ffffff);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.macro-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.macro-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.macro-heading span {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.macro-bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.macro-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.macro-value {
+  font-size: 0.75rem;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+.macro-bar-area {
+  width: 100%;
+  max-width: 42px;
+  height: 110px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.macro-bar {
+  width: 100%;
+  min-height: 0;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s ease;
+}
+
+.protein-bar {
+  background: #2563eb;
+}
+
+.carbs-bar {
+  background: #d97706;
+}
+
+.fat-bar {
+  background: #9333ea;
+}
+
+@media (max-width: 480px) {
+  .macro-chart {
+    padding: 14px 8px;
+  }
+
+  .macro-bars {
+    gap: 4px;
+  }
+
+  .macro-value {
+    font-size: 0.65rem;
+  }
+
+  .macro-heading h3 {
+    font-size: 0.9rem;
+  }
+}
+
+.macro-targets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.macro-target-card {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: var(--card-background, #ffffff);
+}
+
+.macro-target-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.macro-target-heading span {
+  font-weight: 600;
+}
+
+.macro-target-heading strong {
+  font-size: 0.9rem;
+}
+
+.target-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: #e5e7eb;
+  border-radius: 999px;
+}
+
+.target-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.protein-fill {
+  background: #2563eb;
+}
+
+.carbs-fill {
+  background: #d97706;
+}
+
+.fat-fill {
+  background: #9333ea;
+}
+
+.macro-target-card small {
+  display: block;
+  margin-top: 10px;
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .macro-targets {
+    grid-template-columns: 1fr;
+  }
+}

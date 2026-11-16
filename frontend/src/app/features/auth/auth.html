@@ -1,0 +1,78 @@
+
+<main class="auth-page">
+  <section class="auth-card">
+    <div class="brand">
+      <span class="brand-icon">H</span>
+      <h1>HealthGPT</h1>
+    </div>
+
+    <p class="subtitle">Your personal health and nutrition companion</p>
+
+    <h2>{{ isLogin ? 'Welcome back' : 'Create your account' }}</h2>
+    <p class="hint">
+      {{
+        isLogin
+          ? 'Sign in to continue your health journey.'
+          : 'Start building healthier habits today.'
+      }}
+    </p>
+
+    <form (ngSubmit)="submit()" #authForm="ngForm">
+      <label for="email">Email address</label>
+      <input
+        id="email"
+        type="email"
+        name="email"
+        [(ngModel)]="email"
+        required
+        email
+        autocomplete="email"
+        placeholder="you@example.com"
+      />
+
+      <label for="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        name="password"
+        [(ngModel)]="password"
+        required
+        minlength="6"
+        [autocomplete]="isLogin ? 'current-password' : 'new-password'"
+        placeholder="Enter your password"
+      />
+
+      <p class="feedback error" *ngIf="error">{{ error }}</p>
+      <p class="feedback success" *ngIf="message">{{ message }}</p>
+
+
+<button
+  *ngIf="needsEmailConfirmation && isLogin"
+  type="button"
+  class="resend-button"
+  [disabled]="loading"
+  (click)="resendConfirmation()"
+>
+  {{ loading ? 'Please wait...' : 'Resend confirmation email' }}
+</button>
+
+
+      <button type="submit" [disabled]="loading || authForm.invalid">
+        {{
+          loading
+            ? 'Please wait...'
+            : isLogin
+              ? 'Sign in'
+              : 'Create account'
+        }}
+      </button>
+    </form>
+
+    <p class="switch-mode">
+      {{ isLogin ? "Don't have an account?" : 'Already have an account?' }}
+      <button type="button" class="text-button" (click)="toggleMode()">
+        {{ isLogin ? 'Sign up' : 'Sign in' }}
+      </button>
+    </p>
+  </section>
+</main>

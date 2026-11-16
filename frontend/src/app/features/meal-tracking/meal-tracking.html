@@ -1,0 +1,324 @@
+
+<div class="meal-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">HEALTHGPT</p>
+      <h1>Meal Tracker</h1>
+      <p class="subtitle">Track your nutrition, one meal at a time.</p>
+    </div>
+
+    <a routerLink="/dashboard" class="back-link">← Dashboard</a>
+  </header>
+
+  <!-- Daily nutrition summary -->
+  <section class="summary-grid" *ngIf="summary as daily">
+    <article class="summary-card calories">
+      <span class="summary-label">Calories</span>
+      <strong>{{ daily.calories | number:'1.0-0' }}</strong>
+      <span class="unit">kcal consumed today</span>
+    </article>
+
+    <article class="summary-card">
+      <span class="summary-label">Protein</span>
+      <strong>{{ daily.protein_g | number:'1.0-1' }} g</strong>
+      <span class="unit">Today's total</span>
+    </article>
+
+    <article class="summary-card">
+      <span class="summary-label">Carbs</span>
+      <strong>{{ daily.carbs_g | number:'1.0-1' }} g</strong>
+      <span class="unit">Today's total</span>
+    </article>
+
+    <article class="summary-card">
+      <span class="summary-label">Fat</span>
+      <strong>{{ daily.fat_g | number:'1.0-1' }} g</strong>
+      <span class="unit">Today's total</span>
+    </article>
+
+    <article class="summary-card">
+      <span class="summary-label">Food spending</span>
+      <strong>₹{{ daily.cost | number:'1.0-2' }}</strong>
+      <span class="unit">{{ daily.meal_count }} meals today</span>
+    </article>
+  </section>
+
+  <div class="content-grid">
+    <!-- Add meal form -->
+    <section class="panel form-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Log a meal</h2>
+          <p>Add the food you have eaten.</p>
+        </div>
+        <span class="heading-icon">＋</span>
+      </div>
+
+      <div class="alert error-alert" *ngIf="error" role="alert">
+        {{ error }}
+      </div>
+
+      <div class="alert success-alert" *ngIf="message" role="status">
+        {{ message }}
+      </div>
+
+      <form #mealForm="ngForm" (ngSubmit)="addMeal()" novalidate>
+
+<!-- Food database search -->
+<section class="food-search">
+  <h3>Find food nutrition</h3>
+  <p>Search packaged foods to autofill nutrition values.</p>
+
+  <div class="food-search-controls">
+    <input
+      id="foodQuery"
+      name="foodQuery"
+      type="search"
+      [(ngModel)]="foodQuery"
+      placeholder="Search e.g. oats or milk"
+      maxlength="100"
+      [disabled]="foodSearchLoading"
+      aria-label="Search food database"
+    />
+
+    <button
+      type="button"
+      class="refresh-button"
+      (click)="searchFoods()"
+      [disabled]="foodSearchLoading || foodQuery.trim().length < 2"
+    >
+      {{ foodSearchLoading ? 'Searching...' : 'Search' }}
+    </button>
+  </div>
+
+  <p class="alert error-alert" *ngIf="foodSearchError" role="alert">
+    {{ foodSearchError }}
+  </p>
+
+  <p *ngIf="foodSearchMessage" role="status">
+    {{ foodSearchMessage }}
+  </p>
+
+  <div class="food-results" *ngIf="foodResults.length > 0">
+    <article class="food-result" *ngFor="let food of foodResults">
+      <div>
+        <strong>{{ food.name }}</strong>
+        <p *ngIf="food.brands">{{ food.brands }}</p>
+        <small>
+          Per 100 g:
+          {{ food.calories ?? 'N/A' }} kcal ·
+          Protein {{ food.protein_g ?? 'N/A' }} g ·
+          Carbs {{ food.carbs_g ?? 'N/A' }} g ·
+          Fat {{ food.fat_g ?? 'N/A' }} g
+        </small>
+      </div>
+
+      <button
+        type="button"
+        class="refresh-button"
+        (click)="selectFood(food)"
+      >
+        Select
+      </button>
+    </article>
+  </div>
+
+  <div *ngIf="selectedFood" class="portion-selector">
+    <label for="portionGrams">Portion size (grams)</label>
+    <input
+      id="portionGrams"
+      name="portionGrams"
+      type="number"
+      [(ngModel)]="portionGrams"
+      (ngModelChange)="updateNutritionForPortion()"
+      min="1"
+      max="100000"
+      step="1"
+      required
+    />
+    <small>
+      Nutrition values are scaled from the selected food's per-100-g data.
+      Review them before saving.
+    </small>
+  </div>
+</section>
+
+        <div class="field">
+          <label for="food_name">Food name</label>
+          <input
+            id="food_name"
+            name="food_name"
+            type="text"
+            [(ngModel)]="form.food_name"
+            placeholder="e.g. Poha"
+            maxlength="200"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="meal_type">Meal type</label>
+          <select
+            id="meal_type"
+            name="meal_type"
+            [(ngModel)]="form.meal_type"
+            required
+          >
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+            <option value="snack">Snack</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="portion">Portion</label>
+          <input
+            id="portion"
+            name="portion"
+            type="text"
+            [(ngModel)]="form.portion"
+            placeholder="e.g. 1 bowl"
+            maxlength="100"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="calories">Calories (kcal)</label>
+          <input
+            id="calories"
+            name="calories"
+            type="number"
+            [(ngModel)]="form.calories"
+            min="0"
+            max="99999999"
+            step="0.01"
+            required
+          />
+        </div>
+
+        <div class="macro-grid">
+          <div class="field">
+            <label for="protein_g">Protein (g)</label>
+            <input
+              id="protein_g"
+              name="protein_g"
+              type="number"
+              [(ngModel)]="form.protein_g"
+              min="0"
+              max="99999999"
+              step="0.1"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="carbs_g">Carbs (g)</label>
+            <input
+              id="carbs_g"
+              name="carbs_g"
+              type="number"
+              [(ngModel)]="form.carbs_g"
+              min="0"
+              max="99999999"
+              step="0.1"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="fat_g">Fat (g)</label>
+            <input
+              id="fat_g"
+              name="fat_g"
+              type="number"
+              [(ngModel)]="form.fat_g"
+              min="0"
+              max="99999999"
+              step="0.1"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="cost">Cost (₹)</label>
+          <input
+            id="cost"
+            name="cost"
+            type="number"
+            [(ngModel)]="form.cost"
+            min="0"
+            max="99999999"
+            step="0.01"
+            required
+          />
+        </div>
+
+        <button
+          class="submit-button"
+          type="submit"
+          [disabled]="saving || mealForm.invalid"
+        >
+          {{ saving ? 'Saving meal...' : '＋ Save meal' }}
+        </button>
+      </form>
+    </section>
+
+    <!-- Recent meals -->
+    <section class="panel meals-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Recent meals</h2>
+          <p>Your latest food entries.</p>
+        </div>
+
+        <button
+          type="button"
+          class="refresh-button"
+          (click)="loadData()"
+          [disabled]="loading"
+          aria-label="Refresh meal history"
+        >
+          ↻
+        </button>
+      </div>
+
+      <div class="loading-state" *ngIf="loading">
+        Loading your meals...
+      </div>
+
+      <div class="empty-state" *ngIf="!loading && meals.length === 0">
+        <span class="empty-icon">🍽️</span>
+        <h3>No meals logged yet</h3>
+        <p>Add your first meal using the form.</p>
+      </div>
+
+      <div class="meal-list" *ngIf="!loading && meals.length > 0">
+        <article class="meal-item" *ngFor="let meal of meals">
+          <div class="meal-icon">
+            {{ meal.meal_type === 'breakfast' ? '☀️' :
+               meal.meal_type === 'lunch' ? '🥗' :
+               meal.meal_type === 'dinner' ? '🍲' : '🍎' }}
+          </div>
+
+          <div class="meal-details">
+            <h3>{{ meal.food_name }}</h3>
+            <p>
+              {{ meal.meal_type | titlecase }} · {{ meal.portion }}
+            </p>
+            <span class="meal-time">
+              {{ meal.consumed_at | date:'medium' }}
+            </span>
+          </div>
+
+          <div class="meal-nutrition">
+            <strong>{{ meal.calories | number:'1.0-0' }} kcal</strong>
+            <span>₹{{ meal.cost | number:'1.0-2' }}</span>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+</div>

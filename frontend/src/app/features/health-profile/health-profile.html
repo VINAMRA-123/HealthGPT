@@ -1,0 +1,77 @@
+
+<main class="profile-page">
+  <section class="profile-card">
+    <h1>Your Health Profile</h1>
+    <p>Tell HealthGPT about your goals and nutrition preferences.</p>
+
+    <form (ngSubmit)="submit()" #profileForm="ngForm">
+      <label for="goals">Health goals</label>
+      <textarea
+        id="goals"
+        name="goals"
+        [(ngModel)]="goals"
+        required
+        maxlength="500"
+        placeholder="e.g. Improve nutrition and maintain a healthy weight"
+      ></textarea>
+
+      <label for="dietaryPreferences">Dietary preferences</label>
+      <input
+        id="dietaryPreferences"
+        name="dietaryPreferences"
+        [(ngModel)]="dietaryPreferences"
+        required
+        maxlength="500"
+        placeholder="e.g. Vegetarian"
+      />
+
+      <label for="dailyBudget">Daily food budget (₹)</label>
+      <input
+        id="dailyBudget"
+        name="dailyBudget"
+        type="number"
+        [(ngModel)]="dailyBudget"
+        required
+        min="0.01"
+        step="0.01"
+        placeholder="e.g. 250"
+      />
+
+      <p class="feedback error" *ngIf="error">{{ error }}</p>
+      <p class="feedback success" *ngIf="message">{{ message }}</p>
+
+
+
+<button
+  type="submit"
+  [disabled]="saving || loadingProfile || profileForm.invalid"
+>
+  {{
+    loadingProfile
+      ? 'Loading profile...'
+      : saving
+        ? 'Saving...'
+        : savedProfile
+          ? 'Update health profile'
+          : 'Save health profile'
+  }}
+</button>
+
+
+    </form>
+
+    <section *ngIf="savedProfile">
+      <h2>Saved profile</h2>
+      <p><strong>Profile ID:</strong> {{ savedProfile.id }}</p>
+      <p><strong>Goals:</strong> {{ savedProfile.goals }}</p>
+      <p>
+        <strong>Diet:</strong>
+        {{ savedProfile.dietary_preferences }}
+      </p>
+      <p>
+        <strong>Daily budget:</strong>
+        ₹{{ savedProfile.daily_budget }}
+      </p>
+    </section>
+  </section>
+</main>
