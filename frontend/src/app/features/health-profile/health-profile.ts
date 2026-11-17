@@ -1,7 +1,13 @@
 
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+
 import {
   HealthProfileService,
   HealthProfile,
@@ -10,7 +16,7 @@ import {
 @Component({
   selector: 'app-health-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './health-profile.html',
   styleUrl: './health-profile.css',
 })
@@ -23,9 +29,13 @@ export class HealthProfileComponent implements OnInit {
   saving = false;
   message = '';
   error = '';
+
   savedProfile: HealthProfile | null = null;
 
-  constructor(private profileService: HealthProfileService) {}
+  constructor(
+    private profileService: HealthProfileService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     void this.loadProfile();
@@ -56,6 +66,7 @@ export class HealthProfileComponent implements OnInit {
         this.message = 'No profile exists yet. Enter your details below.';
       } else {
         console.error('Profile load failed:', err);
+
         this.error =
           e.error?.detail ??
           e.message ??
@@ -63,6 +74,7 @@ export class HealthProfileComponent implements OnInit {
       }
     } finally {
       this.loadingProfile = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -82,6 +94,7 @@ export class HealthProfileComponent implements OnInit {
     }
 
     this.saving = true;
+    this.cdr.markForCheck();
 
     try {
       this.savedProfile = await this.profileService.upsertMyProfile({
@@ -91,7 +104,8 @@ export class HealthProfileComponent implements OnInit {
       });
 
       this.goals = this.savedProfile.goals;
-      this.dietaryPreferences = this.savedProfile.dietary_preferences;
+      this.dietaryPreferences =
+        this.savedProfile.dietary_preferences;
       this.dailyBudget = Number(this.savedProfile.daily_budget);
 
       this.message = 'Health profile saved successfully.';
@@ -103,13 +117,14 @@ export class HealthProfileComponent implements OnInit {
       };
 
       console.error('Profile save failed:', err);
+
       this.error =
         e.error?.detail ??
         e.message ??
         'Could not save profile. Check the API and try again.';
-    }  finally {
-  this.saving = false;
-  console.log('Saving finished. saving =', this.saving);
-}
+    } finally {
+      this.saving = false;
+      this.cdr.markForCheck();
+    }
   }
 }
