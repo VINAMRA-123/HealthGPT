@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { SupabaseAuthService } from './supabase-auth';
-
+import { environment } from '../../../environments/environments';
 export interface ChatThread {
   id: string;
   title: string;
@@ -65,7 +65,8 @@ export type ChatStreamEvent =
   providedIn: 'root',
 })
 export class ChatService {
-  private readonly apiUrl = 'http://127.0.0.1:8000/api/v1/chat';
+  private readonly apiUrl =
+  `${environment.apiBaseUrl}/api/v1/chat`;
 
   constructor(
     private readonly http: HttpClient,

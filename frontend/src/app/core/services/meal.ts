@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-
+import { environment } from '../../../environments/environments';
 import { SupabaseAuthService } from '../../core/services/supabase-auth';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -88,7 +88,8 @@ export interface DailyNutritionSummary {
   providedIn: 'root',
 })
 export class MealService {
-  private readonly apiUrl = 'http://127.0.0.1:8000/api/v1/meals';
+  private readonly apiUrl =
+  `${environment.apiBaseUrl}/api/v1/meals`;
 
   constructor(
     private readonly http: HttpClient,

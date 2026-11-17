@@ -1,6 +1,6 @@
 
 import logging
-
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,11 +18,18 @@ app = FastAPI(
     version="0.1.0",
 )
 
+frontend_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRONTEND_URL", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:4200",
         "http://127.0.0.1:4200",
+        *frontend_origins,
     ],
     allow_credentials=False,
     allow_methods=["*"],

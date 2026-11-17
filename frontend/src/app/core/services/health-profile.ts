@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { SupabaseAuthService } from './supabase-auth';
+import { environment } from '../../../environments/environments';
 
 export interface HealthProfile {
   id: number;
@@ -22,7 +23,7 @@ export interface HealthProfileInput {
 })
 export class HealthProfileService {
   private readonly apiUrl =
-    'http://127.0.0.1:8000/api/v1/health/profile';
+  `${environment.apiBaseUrl}/api/v1/health/profile`;
 
   constructor(
     private http: HttpClient,
