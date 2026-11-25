@@ -3,6 +3,7 @@ import logging
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 from app.api.food_search import router as food_search_router
 from app.api.profiles import router as profiles_router
@@ -23,6 +24,9 @@ frontend_origins = [
     for origin in os.getenv("FRONTEND_URL", "").split(",")
     if origin.strip()
 ]
+
+# Compress JSON responses (meal lists, summaries, food search) over the wire.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(
     CORSMiddleware,

@@ -3,7 +3,7 @@
   <section class="profile-card">
     <h1>Your Health Profile</h1>
     <p>Tell HealthGPT about your goals and nutrition preferences.</p>
-
+    <a routerLink="/dashboard" class="back-link">← Dashboard</a>
     <form (ngSubmit)="submit()" #profileForm="ngForm">
       <label for="goals">Health goals</label>
       <textarea
@@ -62,7 +62,6 @@
 
     <section *ngIf="savedProfile">
       <h2>Saved profile</h2>
-      <p><strong>Profile ID:</strong> {{ savedProfile.id }}</p>
       <p><strong>Goals:</strong> {{ savedProfile.goals }}</p>
       <p>
         <strong>Diet:</strong>

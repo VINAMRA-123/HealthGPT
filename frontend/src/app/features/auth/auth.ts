@@ -1,8 +1,8 @@
-
 import { CommonModule } from '@angular/common';
-import { Component,OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { DashboardCache } from '../../core/services/dashboard-cache';
 import { SupabaseAuthService } from '../../core/services/supabase-auth';
 
 @Component({
@@ -12,7 +12,7 @@ import { SupabaseAuthService } from '../../core/services/supabase-auth';
   templateUrl: './auth.html',
   styleUrl: './auth.css',
 })
-export class Auth implements OnInit{
+export class Auth {
   isLogin = true;
   email = '';
   password = '';
@@ -23,7 +23,9 @@ export class Auth implements OnInit{
 
   constructor(
     private authService: SupabaseAuthService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+    private dashboardCache: DashboardCache,
   ) {}
 
   toggleMode(): void {
@@ -32,87 +34,82 @@ export class Auth implements OnInit{
     this.error = '';
     this.needsEmailConfirmation = false;
   }
-ngOnInit(): void {
-  console.log('AUTH COMPONENT LOADED');
-}
 
-async submit(): Promise<void> {
-  this.message = '';
-  this.error = '';
-  this.needsEmailConfirmation = false;
+  async submit(): Promise<void> {
+    this.message = '';
+    this.error = '';
+    this.needsEmailConfirmation = false;
 
-  if (!this.email.trim() || !this.password) {
-    this.error = 'Please enter your email and password.';
-    return;
-  }
-
-  this.loading = true;
-
-  try {
-    if (this.isLogin) {
-      const { data, error } = await this.authService.signIn(
-        this.email.trim(),
-        this.password
-      );
-
-      if (error) {
-        const authError = error as {
-          message?: string;
-          code?: string;
-        };
-        const token = await this.authService.getAccessToken();
-console.log('Access token:', token);
-
-        this.needsEmailConfirmation =
-          authError.code === 'email_not_confirmed' ||
-          authError.message
-            ?.toLowerCase()
-            .includes('email not confirmed') === true;
-
-        throw error;
-      }
-
-      if (!data.session) {
-        this.error = 'Login succeeded, but no session was returned.';
-        return;
-      }
-
-      this.message = 'Login successful! Redirecting...';
-
-      const navigated = await this.router.navigateByUrl('/dashboard');
-
-      console.log('Navigation result:', navigated);
-      console.log('Current URL:', this.router.url);
-
-      if (!navigated) {
-        this.error = 'Navigation failed. Check the route configuration.';
-      }
-
+    if (!this.email.trim() || !this.password) {
+      this.error = 'Please enter your email and password.';
       return;
     }
 
-    const { data, error } = await this.authService.signUp(
-      this.email.trim(),
-      this.password
-    );
+    this.loading = true;
+    this.cdr.markForCheck();
 
-    if (error) {
-      throw error;
+    try {
+      if (this.isLogin) {
+        const { data, error } = await this.authService.signIn(
+          this.email.trim(),
+          this.password,
+        );
+
+        if (error) {
+          const authError = error as {
+            message?: string;
+            code?: string;
+          };
+
+          this.needsEmailConfirmation =
+            authError.code === 'email_not_confirmed' ||
+            authError.message
+              ?.toLowerCase()
+              .includes('email not confirmed') === true;
+
+          throw error;
+        }
+
+        if (!data.session) {
+          this.error = 'Login succeeded, but no session was returned.';
+          return;
+        }
+
+        // Never show a previous user's dashboard numbers.
+        this.dashboardCache.clear();
+
+        this.message = 'Login successful! Redirecting...';
+        this.cdr.markForCheck();
+
+        const navigated = await this.router.navigateByUrl('/dashboard');
+
+        if (!navigated) {
+          this.error = 'Navigation failed. Check the route configuration.';
+        }
+
+        return;
+      }
+
+      const { data, error } = await this.authService.signUp(
+        this.email.trim(),
+        this.password,
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      this.message = data.session
+        ? 'Account created successfully! Please sign in.'
+        : 'Account created. Check your email to confirm your account.';
+    } catch (err: unknown) {
+      this.error =
+        err instanceof Error ? err.message : 'Authentication failed.';
+    } finally {
+      this.loading = false;
+      this.cdr.markForCheck();
     }
-
-    this.message = data.session
-      ? 'Account created successfully! Please sign in.'
-      : 'Account created. Check your email to confirm your account.';
-  } catch (err: unknown) {
-    this.error =
-      err instanceof Error
-        ? err.message
-        : 'Authentication failed.';
-  } finally {
-    this.loading = false;
   }
-}
-
 
   async resendConfirmation(): Promise<void> {
     this.error = '';
@@ -124,10 +121,11 @@ console.log('Access token:', token);
     }
 
     this.loading = true;
+    this.cdr.markForCheck();
 
     try {
       const { error } = await this.authService.resendConfirmation(
-        this.email.trim()
+        this.email.trim(),
       );
 
       if (error) {
@@ -143,6 +141,7 @@ console.log('Access token:', token);
           : 'Unable to request a confirmation email.';
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 }

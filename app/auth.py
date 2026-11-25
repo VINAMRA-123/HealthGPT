@@ -30,7 +30,15 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 @lru_cache(maxsize=1)
 def get_jwks_client() -> PyJWKClient:
-    return PyJWKClient(SUPABASE_JWKS_URL)
+    # Keep Supabase's signing keys cached for an hour. The default is 5
+    # minutes, which made one request in every few block on a network call.
+    return PyJWKClient(
+        SUPABASE_JWKS_URL,
+        cache_keys=True,
+        cache_jwk_set=True,
+        lifespan=3600,
+        timeout=5,
+    )
 
 
 def get_current_user_id(

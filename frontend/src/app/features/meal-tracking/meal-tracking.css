@@ -422,36 +422,10 @@
   margin-top: 0;
 }
 
-.food-search-controls {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
 
-.food-search-controls input {
-  flex: 1;
-  min-width: 0;
-}
 
-.food-results {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
 
-.food-result {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
 
-.food-result p {
-  margin: 0.25rem 0;
-}
 
 .food-result small,
 .portion-selector small {
@@ -633,6 +607,210 @@
   }
 
   .food-search-controls .refresh-button {
+    width: 100%;
+  }
+
+  .food-result {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .food-result .refresh-button {
+    width: 100%;
+  }
+}
+
+/* Food search layout fixes */
+.food-search-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.food-search-controls input {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.food-search .refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 90px;
+  height: auto;
+  min-height: 46px;
+  padding: 10px 18px;
+  white-space: nowrap;
+}
+
+.food-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.food-result > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.food-result .refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 84px;
+  height: auto;
+  min-height: 42px;
+  padding: 9px 16px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Scrollable food results with load-more */
+.food-results-wrap {
+  margin-top: 1.1rem;
+}
+
+.food-results-wrap .food-results {
+  max-height: 380px;
+  margin-top: 0;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+.food-results-wrap .food-results:focus-visible {
+  outline: 2px solid #138a72;
+  outline-offset: 2px;
+}
+
+.food-more {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 2px;
+}
+
+.search-status {
+  margin: 12px 0 0;
+  color: #627188;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.estimate-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff6e0;
+  color: #8a5a00;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Edit / delete actions on each meal */
+.meal-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.icon-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #e2e7ef;
+  border-radius: 9px;
+  background: #fff;
+  color: #475467;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.icon-button:hover {
+  border-color: #16866a;
+  color: #16866a;
+}
+
+.icon-button.danger:hover {
+  border-color: #d92d20;
+  background: #fff1f1;
+  color: #d92d20;
+}
+
+.cancel-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 1px solid #dfe4ed;
+  border-radius: 10px;
+  background: #fff;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-button:hover:not(:disabled) {
+  border-color: #16866a;
+  color: #16866a;
+}
+
+.pagination-button {
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid #dfe4ed;
+  border-radius: 8px;
+  background: #fff;
+  color: #344054;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pagination-button:hover:not(:disabled) {
+  border-color: #16866a;
+  color: #16866a;
+}
+
+.pagination-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagination-info,
+.results-count {
+  color: #778196;
+  font-size: 13px;
+  text-align: center;
+}
+
+.results-count {
+  margin-top: 10px;
+}
+
+/* Mobile layout */
+@media (max-width: 600px) {
+  .food-search-controls {
+    flex-direction: column;
+  }
+
+  .food-search-controls input,
+  .food-search .refresh-button {
     width: 100%;
   }
 

@@ -293,6 +293,7 @@ async sendMessage(): Promise<void> {
             }
 
             this.messages = history.messages;
+            this.cdr.markForCheck();
         } catch {
             // Keep the messages already displayed if background refresh fails.
         }
@@ -309,7 +310,7 @@ async sendMessage(): Promise<void> {
             }
 
             if (err.status === 0) {
-                return 'Cannot connect to HealthGPT API. Check that FastAPI is running on port 8000.';
+                return 'Cannot reach the HealthGPT server. It may be waking up, so please try again in a few seconds.';
             }
 
             if (err.status === 404) {

@@ -150,6 +150,15 @@ class MealLog(Base):
         server_default=func.now(),
     )
 
+    # Every dashboard/meal query filters by user and a date range.
+    __table_args__ = (
+        Index(
+            "idx_meal_logs_user_consumed",
+            "user_id",
+            "consumed_at",
+        ),
+    )
+
 
 class ChatThread(Base):
     __tablename__ = "chat_threads"

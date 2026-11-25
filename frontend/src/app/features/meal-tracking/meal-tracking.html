@@ -1,4 +1,3 @@
-
 <div class="meal-page">
   <header class="page-header">
     <div>
@@ -48,10 +47,14 @@
     <section class="panel form-panel">
       <div class="panel-heading">
         <div>
-          <h2>Log a meal</h2>
-          <p>Add the food you have eaten.</p>
+          <h2>{{ editingMealId !== null ? 'Edit meal' : 'Log a meal' }}</h2>
+          <p>
+            {{ editingMealId !== null
+              ? 'Update the details and save your changes.'
+              : 'Add the food you have eaten.' }}
+          </p>
         </div>
-        <span class="heading-icon">＋</span>
+        <span class="heading-icon">{{ editingMealId !== null ? '✎' : '＋' }}</span>
       </div>
 
       <div class="alert error-alert" *ngIf="error" role="alert">
@@ -64,84 +67,126 @@
 
       <form #mealForm="ngForm" (ngSubmit)="addMeal()" novalidate>
 
-<!-- Food database search -->
-<section class="food-search">
-  <h3>Find food nutrition</h3>
-  <p>Search packaged foods to autofill nutrition values.</p>
+        <!-- Food database search -->
+        <section class="food-search">
+          <h3>Find food nutrition</h3>
+          <p>Search foods to autofill nutrition values.</p>
 
-  <div class="food-search-controls">
-    <input
-      id="foodQuery"
-      name="foodQuery"
-      type="search"
-      [(ngModel)]="foodQuery"
-      placeholder="Search e.g. oats or milk"
-      maxlength="100"
-      [disabled]="foodSearchLoading"
-      aria-label="Search food database"
-    />
+          <div class="food-search-controls">
+            <input
+              id="foodQuery"
+              name="foodQuery"
+              type="search"
+              [(ngModel)]="foodQuery"
+              (keydown.enter)="onFoodQueryEnter($event)"
+              placeholder="Search e.g. oats, poha or masala oats"
+              maxlength="100"
+              autocomplete="off"
+              aria-label="Search food database"
+            />
 
-    <button
-      type="button"
-      class="refresh-button"
-      (click)="searchFoods()"
-      [disabled]="foodSearchLoading || foodQuery.trim().length < 2"
-    >
-      {{ foodSearchLoading ? 'Searching...' : 'Search' }}
-    </button>
-  </div>
+            <button
+              type="button"
+              class="refresh-button"
+              (click)="searchFoods()"
+              [disabled]="foodSearchLoading || foodQuery.trim().length < 2"
+            >
+              {{ foodSearchLoading ? 'Searching...' : 'Search' }}
+            </button>
+          </div>
 
-  <p class="alert error-alert" *ngIf="foodSearchError" role="alert">
-    {{ foodSearchError }}
-  </p>
+          <p class="alert error-alert" *ngIf="foodSearchError" role="alert">
+            {{ foodSearchError }}
+          </p>
 
-  <p *ngIf="foodSearchMessage" role="status">
-    {{ foodSearchMessage }}
-  </p>
+          <p class="search-status" *ngIf="foodSearchLoading" role="status">
+            Searching the food database. This can take a few seconds...
+          </p>
 
-  <div class="food-results" *ngIf="foodResults.length > 0">
-    <article class="food-result" *ngFor="let food of foodResults">
-      <div>
-        <strong>{{ food.name }}</strong>
-        <p *ngIf="food.brands">{{ food.brands }}</p>
-        <small>
-          Per 100 g:
-          {{ food.calories ?? 'N/A' }} kcal ·
-          Protein {{ food.protein_g ?? 'N/A' }} g ·
-          Carbs {{ food.carbs_g ?? 'N/A' }} g ·
-          Fat {{ food.fat_g ?? 'N/A' }} g
-        </small>
-      </div>
+          <p class="search-status" *ngIf="foodSearchMessage && !foodSearchLoading" role="status">
+            {{ foodSearchMessage }}
+          </p>
 
-      <button
-        type="button"
-        class="refresh-button"
-        (click)="selectFood(food)"
-      >
-        Select
-      </button>
-    </article>
-  </div>
+          <div class="food-results-wrap" *ngIf="foodResults.length > 0">
+            <div
+              class="food-results"
+              (scroll)="onFoodScroll($event)"
+              tabindex="0"
+              aria-label="Food search results"
+            >
+              <article
+                class="food-result"
+                *ngFor="let food of foodResults; trackBy: trackFood"
+              >
+                <div class="food-result-details">
+                  <strong>{{ food.name }}</strong>
 
-  <div *ngIf="selectedFood" class="portion-selector">
-    <label for="portionGrams">Portion size (grams)</label>
-    <input
-      id="portionGrams"
-      name="portionGrams"
-      type="number"
-      [(ngModel)]="portionGrams"
-      (ngModelChange)="updateNutritionForPortion()"
-      min="1"
-      max="100000"
-      step="1"
-      required
-    />
-    <small>
-      Nutrition values are scaled from the selected food's per-100-g data.
-      Review them before saving.
-    </small>
-  </div>
-</section>
+                  <p *ngIf="food.brands">{{ food.brands }}</p>
+
+                  <small>
+                    Per 100 g:
+                    {{ food.calories ?? 'N/A' }} kcal ·
+                    Protein {{ food.protein_g ?? 'N/A' }} g ·
+                    Carbs {{ food.carbs_g ?? 'N/A' }} g ·
+                    Fat {{ food.fat_g ?? 'N/A' }} g
+                  </small>
+
+                  <span class="estimate-badge" *ngIf="food.is_estimate">
+                    Estimate
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  class="refresh-button select-button"
+                  (click)="selectFood(food)"
+                >
+                  Select
+                </button>
+              </article>
+
+              <div class="food-more">
+                <button
+                  type="button"
+                  class="pagination-button"
+                  *ngIf="foodHasMore"
+                  (click)="loadMoreFoods()"
+                  [disabled]="foodLoadingMore"
+                >
+                  {{ foodLoadingMore ? 'Loading more...' : 'Load more results' }}
+                </button>
+
+                <span class="pagination-info" *ngIf="!foodHasMore">
+                  End of results
+                </span>
+              </div>
+            </div>
+
+            <p class="results-count">
+              Showing {{ foodResults.length }} results
+              <ng-container *ngIf="foodHasMore">· scroll for more</ng-container>
+            </p>
+          </div>
+
+          <div *ngIf="selectedFood" class="portion-selector">
+            <label for="portionGrams">Portion size (grams)</label>
+            <input
+              id="portionGrams"
+              name="portionGrams"
+              type="number"
+              [(ngModel)]="portionGrams"
+              (ngModelChange)="updateNutritionForPortion()"
+              min="1"
+              max="100000"
+              step="1"
+              required
+            />
+            <small>
+              Nutrition values are scaled from the selected food's per-100-g data.
+              Review them before saving.
+            </small>
+          </div>
+        </section>
 
         <div class="field">
           <label for="food_name">Food name</label>
@@ -261,7 +306,19 @@
           type="submit"
           [disabled]="saving || mealForm.invalid"
         >
-          {{ saving ? 'Saving meal...' : '＋ Save meal' }}
+          {{ saving
+            ? 'Saving meal...'
+            : (editingMealId !== null ? 'Save changes' : '＋ Save meal') }}
+        </button>
+
+        <button
+          type="button"
+          class="cancel-button"
+          *ngIf="editingMealId !== null"
+          (click)="cancelEdit()"
+          [disabled]="saving"
+        >
+          Cancel editing
         </button>
       </form>
     </section>
@@ -285,7 +342,7 @@
         </button>
       </div>
 
-      <div class="loading-state" *ngIf="loading">
+      <div class="loading-state" *ngIf="loading && meals.length === 0">
         Loading your meals...
       </div>
 
@@ -295,8 +352,8 @@
         <p>Add your first meal using the form.</p>
       </div>
 
-      <div class="meal-list" *ngIf="!loading && meals.length > 0">
-        <article class="meal-item" *ngFor="let meal of meals">
+      <div class="meal-list" *ngIf="meals.length > 0">
+        <article class="meal-item" *ngFor="let meal of meals; trackBy: trackMeal">
           <div class="meal-icon">
             {{ meal.meal_type === 'breakfast' ? '☀️' :
                meal.meal_type === 'lunch' ? '🥗' :
@@ -316,6 +373,27 @@
           <div class="meal-nutrition">
             <strong>{{ meal.calories | number:'1.0-0' }} kcal</strong>
             <span>₹{{ meal.cost | number:'1.0-2' }}</span>
+          </div>
+
+          <div class="meal-actions">
+            <button
+              type="button"
+              class="icon-button"
+              (click)="editMeal(meal)"
+              [attr.aria-label]="'Edit ' + meal.food_name"
+              title="Edit"
+            >
+              ✎
+            </button>
+            <button
+              type="button"
+              class="icon-button danger"
+              (click)="deleteMeal(meal)"
+              [attr.aria-label]="'Delete ' + meal.food_name"
+              title="Delete"
+            >
+              🗑
+            </button>
           </div>
         </article>
       </div>
