@@ -15,9 +15,13 @@ The project explores a practical approach to building agentic AI applications: *
 | Database            | Supabase PostgreSQL             |
 | Authentication      | Supabase Auth, JWT verification |
 | ORM                 | SQLAlchemy                      |
-| Testing             | Pytest                          |
+| Observability       | LangSmith (traces, latency, token usage) |
+| Evaluation          | Offline eval suite (routing + data validation), LangSmith experiments |
+| Testing             | Pytest (backend), Vitest (frontend) |
+| CI                  | GitHub Actions                  |
+| Deployment          | Vercel (frontend), Render (API), Supabase (database) |
 
-> **Status:** Active development. This repository contains the application source code and initial automated tests. Deployment and broader end-to-end validation are ongoing. HealthGPT is a portfolio project, not a medical diagnosis or treatment system.
+> **Status:** Active development. The application is deployed (Vercel + Render + Supabase), has automated backend and frontend tests running in CI, LangSmith tracing, and an offline evaluation suite. Broader end-to-end validation is ongoing. HealthGPT is a portfolio project, not a medical diagnosis or treatment system.
 
 ---
 
@@ -44,7 +48,8 @@ The objective is to build an assistant that can reason over available user data 
 - Supabase-based user authentication.
 - User-specific health profiles.
 - Dietary preferences and health goals.
-- Configurable daily nutrition targets and food budget.
+- Configurable daily calorie and macro targets, and a daily food budget.
+- Dashboard with a calorie ring, macro progress, budget usage and a tabbed 7-day trend chart.
 
 ### Meal Tracking
 
@@ -52,6 +57,8 @@ The objective is to build an assistant that can reason over available user data 
 - Track calories, protein, carbohydrates, fats, and meal costs.
 - Retrieve recent meal history.
 - Validate recorded nutrition values and flag suspicious or incomplete data.
+- Search foods from a built-in Indian-food catalogue and Open Food Facts, with server-side pagination, infinite scroll and result caching.
+- Edit and delete meals with instant list and totals updates.
 
 ### Nutrition Analytics
 
@@ -250,6 +257,60 @@ JWT verification includes:
 
 The authenticated user identity is used by protected backend operations to scope access to personal records.
 
+### 5.6 Observability with LangSmith
+
+Every chat request is traced in [LangSmith](https://smith.langchain.com) so agent behaviour can be inspected instead of guessed at.
+
+What a trace contains:
+
+- One `healthgpt_chat` run per message, with a child run for each LangGraph node (supervisor, data agent, nutrition agent, Gemini agent, synthesis).
+- Every Gemini call as its own LLM run with the model name, latency, streamed output and **token counts**.
+- Failed calls to the primary model appear as errored runs followed by the fallback model's run, so **model fallbacks are visible**.
+- Every backend tool call (`health_tool`) with its arguments and the *shape* of its result.
+- Tags `intent:<name>` and `path:sql` / `path:llm`, so SQL-answered and LLM-answered questions can be filtered and compared.
+- A `thread_id` so the messages of one conversation are grouped together.
+
+Tracing is **off by default**. To enable it, add to `.env` (or the Render environment):
+
+```dotenv
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key
+LANGSMITH_PROJECT=healthgpt
+APP_ENV=production        # lets you filter production vs local traces
+```
+
+**Privacy:** traces can contain chat messages and meal data. User ids are never sent raw (a short one-way hash is used). For real users set `LANGSMITH_HIDE_INPUTS=true` and `LANGSMITH_HIDE_OUTPUTS=true` so only structure, timing, token counts and errors are uploaded. Tests never upload traces.
+
+### 5.7 Evaluation-driven development
+
+Routing decides whether a question is answered from the user's own data (SQL) or by the LLM, so a wrong route gives a wrong kind of answer. The routing and validation logic is therefore measured, not assumed.
+
+```bash
+python -m evals.run_evals               # print results
+python -m evals.run_evals --json out.json
+python -m evals.run_evals --langsmith   # upload dataset + experiments to LangSmith
+```
+
+The suite scores:
+
+- **Intent routing** on a labelled question set, reporting accuracy, per-intent precision/recall, and two error types separately: general questions wrongly answered from SQL, and data questions wrongly sent to the LLM.
+- **Nutrition validation** on labelled meal records, reporting precision and recall of the "flagged" decision.
+
+The first evaluation found a real bug: the original router matched keywords as substrings, so `"ate"` matched inside *latest* and *update*, and `"past"` matched inside *pasta*. "How many calories are in pasta?" was treated as a query over the user's logged meals. The router (`app/ai/intent.py`) now matches whole words, and the old implementation is kept in `chat.py` as `classify_intent_legacy` so the improvement stays reproducible.
+
+> The evaluation set is small and hand-written by the author, so treat the percentages as a regression guard and a comparison between two routers, not as a measure of real-world accuracy. Extend `evals/datasets.py` with real user questions to strengthen it.
+
+<!-- Paste your own results here after running `python -m evals.run_evals`. -->
+
+### 5.8 Reliability and abuse protection
+
+- **Rate limiting:** chat is limited per user and food search per IP, returning HTTP 429 with a `Retry-After` header. Chat is the endpoint that costs money (Gemini).
+- **Fast, resilient food search:** the two Open Food Facts queries run in parallel with short timeouts, results are cached, and when the external service is slow the UI says so instead of showing an empty list.
+- **Gemini fallbacks:** if the primary model fails before any text was streamed, the next configured model is tried; after partial output the request fails rather than restarting mid-answer.
+- **Backend performance:** gzip responses, a one-hour Supabase key cache for JWT verification, and a composite database index on `meal_logs (user_id, consumed_at)`.
+- **Frontend:** lazy-loaded routes, auth route guards, stale-while-revalidate dashboard data, and a start-up ping that wakes the free-tier API.
+- **CI:** GitHub Actions runs the backend tests, frontend unit tests and a production build on every push and pull request.
+
 ## 6. Nutrition Data Quality and Safety
 
 Nutrition data can be incomplete or internally inconsistent. HealthGPT includes a validation layer to identify potential data-quality problems.
@@ -268,16 +329,15 @@ The validator checks:
 
 The calorie cross-check uses:
 
-[
-\text{Estimated Calories}
-\= 4P + 4C + 9F
-]
+```text
+Estimated calories = 4 × P + 4 × C + 9 × F
+```
 
 Where:
 
-- (P) = protein in grams.
-- (C) = carbohydrates in grams.
-- (F) = fat in grams.
+- `P` = protein in grams.
+- `C` = carbohydrates in grams.
+- `F` = fat in grams.
 
 A record that fails the available checks is flagged with warnings. The validator preserves the original recorded values instead of silently modifying them.
 
@@ -352,7 +412,9 @@ HealthGPT/
 │   │   ├── graph/
 │   │   │   ├── routing.py
 │   │   │   └── state.py
-│   │   └── chat_workflow.py
+│   │   ├── chat_workflow.py
+│   │   ├── intent.py          # word-boundary intent router
+│   │   └── tracing.py         # LangSmith helpers
 │   │
 │   ├── api/
 │   │   ├── chat.py
@@ -367,6 +429,7 @@ HealthGPT/
 │   ├── db.py
 │   ├── main.py
 │   ├── models.py
+│   ├── rate_limit.py
 │   └── schemas.py
 │
 ├── frontend/
@@ -380,7 +443,10 @@ HealthGPT/
 │               ├── health-profile/
 │               └── meal-tracking/
 │
+├── evals/                     # routing + validator evaluation suite
 ├── tests/
+├── .github/workflows/ci.yml
+├── conftest.py
 ├── test_nutrition_validator.py
 ├── requirements.txt
 ├── .env.example
@@ -396,6 +462,7 @@ HealthGPT/
 | FastAPI             | Backend REST APIs                             |
 | Python              | Backend and AI orchestration                  |
 | LangGraph           | Stateful agent workflow orchestration         |
+| LangSmith           | Tracing, latency/token monitoring, evaluation experiments |
 | Google Gemini       | Conversational reasoning and function calling |
 | Supabase PostgreSQL | Persistent application data                   |
 | Supabase Auth       | User authentication                           |
@@ -454,6 +521,12 @@ DATABASE_URL=your_postgresql_connection_string
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=your_configured_gemini_model
 GEMINI_FALLBACK_MODELS=your_fallback_models
+
+# Optional: LangSmith tracing (off unless LANGSMITH_TRACING=true)
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key
+LANGSMITH_PROJECT=healthgpt
+APP_ENV=development
 ```
 
 Ensure the PostgreSQL database has the required application schema before starting the backend.
@@ -499,6 +572,25 @@ The frontend is available at:
 
 `http://localhost:4200`
 
+### Deployment
+
+| Part     | Platform | Notes |
+| -------- | -------- | ----- |
+| Frontend | Vercel   | Root directory `frontend`. `vercel.json` rewrites all paths to `index.html` so refreshing `/dashboard` works. |
+| API      | Render   | Start command `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Health check path `/health`. |
+| Database | Supabase | Run the schema and the index below once. |
+
+Render environment variables: `SUPABASE_URL`, `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`, `FRONTEND_URL` (your Vercel URL, for CORS), `APP_ENV=production`, and optionally the `LANGSMITH_*` variables.
+
+Production index (the dashboard and chat filter meals by user and date):
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_meal_logs_user_consumed
+  ON meal_logs (user_id, consumed_at);
+```
+
+The free Render tier sleeps when idle. The frontend pings `/health` on start-up to wake it, and an uptime monitor hitting `/health` every 10 minutes keeps it awake.
+
 ## 11. Testing
 
 Run the backend test suite from the project root:
@@ -507,12 +599,30 @@ Run the backend test suite from the project root:
 python -m pytest -v
 ```
 
-The initial repository verification included passing API tests for:
+Backend tests run offline: no database, Gemini key or network is needed (`conftest.py` supplies dummy settings). They cover:
 
-- Health endpoint.
-- Profile route registration.
+- API routes: health endpoint and profile route registration.
+- Food search: matching, Open Food Facts normalisation, pagination fields, degraded-service handling.
+- Rate limiting: sliding window, per-key budgets, HTTP 429 with `Retry-After`.
+- Intent routing: word-boundary matching and regression cases for the old substring bugs.
+- Gemini workflow: model fallback, no model switch after partial output, tool-call loop, tool failures, token-usage conversion (using a fake Gemini client).
+- LangSmith helpers: opt-in behaviour, anonymised ids, run tags.
 
-Additional unit and integration coverage is part of ongoing development.
+Frontend tests and the production build:
+
+```bash
+cd frontend
+npm test -- --watch=false
+npm run build
+```
+
+Run the evaluation suite separately (see section 5.7):
+
+```bash
+python -m evals.run_evals
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend tests, frontend tests and production build on every push to `main` and on pull requests.
 
 ## 12. Future Enhancements & Roadmap
 
@@ -521,11 +631,11 @@ HealthGPT is continuously evolving, with a focus on making its agentic architect
 Planned enhancements include:
 
 - **Advanced Multi-Agent Collaboration:** Extend the supervisor architecture to support coordinated execution of multiple specialized agents for complex health and nutrition queries.
-- **Agent Evaluation Framework:** Introduce systematic evaluation using representative test cases, response-quality metrics, tool-selection accuracy, and workflow validation.
+- **Broader Agent Evaluation:** Extend the routing evaluation to end-to-end answer quality (LLM-as-judge experiments in LangSmith), tool-selection accuracy, and a larger set of real user questions.
 - **Enhanced Nutrition Intelligence:** Improve nutritional data verification, consistency checks, and personalized nutrition insights.
 - **Resilient LLM Integration:** Strengthen Gemini integration with fallback strategies, error handling, and optimized API usage.
-- **Improved Observability:** Integrate tracing and monitoring to understand agent decisions, tool execution, latency, and response quality.
-- **Expanded Testing:** Build comprehensive unit, integration, and end-to-end tests for backend APIs, agent workflows, and frontend interactions.
+- **Production Monitoring:** LangSmith dashboards and alerts for latency, error rate and token cost, plus collection of user feedback on answers.
+- **Expanded Testing:** Add integration tests against a test database and browser-based end-to-end tests for the main user flows.
 
 ## 13. Author
 

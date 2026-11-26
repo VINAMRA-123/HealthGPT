@@ -10,8 +10,12 @@ from app.api.profiles import router as profiles_router
 from app.api.meals import router as meals_router
 from app.api.chat import router as chat_router
 from app.db import check_database_connection
+from app.ai.tracing import configure_tracing
 
 logger = logging.getLogger(__name__)
+
+# Turns on LangSmith tracing only when it is fully configured in the env.
+configure_tracing()
 
 app = FastAPI(
     title="HealthGPT API",

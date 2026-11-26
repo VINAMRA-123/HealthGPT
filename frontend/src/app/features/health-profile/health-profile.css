@@ -79,6 +79,55 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.targets {
+  margin: 8px 0 0;
+  padding: 16px;
+  border: 1px solid #dfe8e3;
+  border-radius: 12px;
+  background: #f8fbf9;
+}
+
+.targets legend {
+  padding: 0 6px;
+  font-weight: 700;
+  color: #174b38;
+}
+
+.targets legend span {
+  color: #667085;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.hint {
+  margin: 0 0 12px;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.targets-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.target-field {
+  display: grid;
+  gap: 6px;
+}
+
+.target-field label {
+  margin-top: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .targets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .feedback.error {
   color: #b42318;
 }

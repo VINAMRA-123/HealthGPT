@@ -44,7 +44,6 @@ def upsert_my_health_profile(
     user_id=Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    print("PROFILE PAYLOAD:", profile_data.model_dump())
     try:
         profile = (
             db.query(HealthProfile)
@@ -68,14 +67,6 @@ def upsert_my_health_profile(
 
         db.commit()
         db.refresh(profile)
-
-        print("SAVED PROFILE ID:", profile.id)
-        print("SAVED TARGETS:", {
-            "calories": profile.daily_calories_target,
-            "protein": profile.daily_protein_target_g,
-            "carbs": profile.daily_carbs_target_g,
-            "fat": profile.daily_fat_target_g,
-        })
 
         return profile
 

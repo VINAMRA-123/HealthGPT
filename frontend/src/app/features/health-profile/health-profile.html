@@ -37,6 +37,68 @@
         placeholder="e.g. 250"
       />
 
+      <fieldset class="targets">
+        <legend>Daily nutrition targets <span>(optional)</span></legend>
+        <p class="hint">
+          These power the calorie ring and macro bars on your dashboard.
+          Leave a field empty if you don't want a target.
+        </p>
+
+        <div class="targets-grid">
+          <div class="target-field">
+            <label for="caloriesTarget">Calories (kcal)</label>
+            <input
+              id="caloriesTarget"
+              name="caloriesTarget"
+              type="number"
+              [(ngModel)]="caloriesTarget"
+              min="1"
+              step="1"
+              placeholder="e.g. 2000"
+            />
+          </div>
+
+          <div class="target-field">
+            <label for="proteinTarget">Protein (g)</label>
+            <input
+              id="proteinTarget"
+              name="proteinTarget"
+              type="number"
+              [(ngModel)]="proteinTarget"
+              min="1"
+              step="1"
+              placeholder="e.g. 60"
+            />
+          </div>
+
+          <div class="target-field">
+            <label for="carbsTarget">Carbs (g)</label>
+            <input
+              id="carbsTarget"
+              name="carbsTarget"
+              type="number"
+              [(ngModel)]="carbsTarget"
+              min="1"
+              step="1"
+              placeholder="e.g. 250"
+            />
+          </div>
+
+          <div class="target-field">
+            <label for="fatTarget">Fat (g)</label>
+            <input
+              id="fatTarget"
+              name="fatTarget"
+              type="number"
+              [(ngModel)]="fatTarget"
+              min="1"
+              step="1"
+              placeholder="e.g. 65"
+            />
+          </div>
+        </div>
+      </fieldset>
+
       <p class="feedback error" *ngIf="error">{{ error }}</p>
       <p class="feedback success" *ngIf="message">{{ message }}</p>
 
@@ -70,6 +132,10 @@
       <p>
         <strong>Daily budget:</strong>
         ₹{{ savedProfile.daily_budget }}
+      </p>
+      <p *ngIf="savedProfile.daily_calories_target">
+        <strong>Calorie target:</strong>
+        {{ savedProfile.daily_calories_target | number:'1.0-0' }} kcal
       </p>
     </section>
   </section>

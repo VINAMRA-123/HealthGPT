@@ -1,4 +1,4 @@
-
+import json
 import logging
 import os
 from typing import Any, Callable, TypedDict
@@ -8,6 +8,8 @@ from google import genai
 from google.genai import types
 from google.genai.errors import ServerError
 from langgraph.graph import END, START, StateGraph
+
+from app.ai.tracing import annotate_run, traceable
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,200 @@ class ChatState(TypedDict, total=False):
 
     answer: str
     model: str
+
+
+# ---------------------------------------------------------------------------
+# LangSmith helpers. They only shape what is *logged*; they never change the
+# values the workflow actually uses.
+# ---------------------------------------------------------------------------
+
+def _usage_dict(metadata: Any) -> dict[str, int] | None:
+    """Gemini usage metadata -> the token fields LangSmith understands."""
+    if metadata is None:
+        return None
+
+    prompt = getattr(metadata, "prompt_token_count", None) or 0
+    output = getattr(metadata, "candidates_token_count", None) or 0
+    thoughts = getattr(metadata, "thoughts_token_count", None) or 0
+    total = getattr(metadata, "total_token_count", None) or (
+        prompt + output + thoughts
+    )
+
+    return {
+        "input_tokens": int(prompt),
+        "output_tokens": int(output + thoughts),
+        "total_tokens": int(total),
+    }
+
+
+def _last_text(contents: list[Any]) -> str:
+    for content in reversed(contents or []):
+        for part in getattr(content, "parts", None) or []:
+            text = getattr(part, "text", None)
+
+            if text:
+                return text
+
+    return ""
+
+
+def _tool_names(tools: Any) -> list[str]:
+    names = []
+
+    for tool in tools or []:
+        for declaration in getattr(tool, "function_declarations", None) or []:
+            name = getattr(declaration, "name", None)
+
+            if name:
+                names.append(name)
+
+    return names
+
+
+def _summarize_llm_inputs(inputs: dict) -> dict:
+    contents = inputs.get("contents") or []
+
+    return {
+        "model": inputs.get("model_name"),
+        "message_count": len(contents),
+        "last_message": _last_text(contents)[:800],
+        "tools": _tool_names(inputs.get("tools")),
+    }
+
+
+def _summarize_llm_outputs(outputs: Any) -> dict:
+    if not isinstance(outputs, dict):
+        return {"output": str(outputs)[:500]}
+
+    parts = outputs.get("response_parts") or []
+
+    return {
+        "text": "".join(outputs.get("text_chunks") or [])[:4000],
+        "function_calls": [
+            part.function_call.name
+            for part in parts
+            if getattr(part, "function_call", None) is not None
+        ],
+        # Picked up by LangSmith for token counts and cost.
+        "usage_metadata": outputs.get("usage_metadata"),
+    }
+
+
+def _summarize_tool_inputs(inputs: dict) -> dict:
+    return {
+        "tool": inputs.get("tool_name"),
+        "arguments": inputs.get("arguments"),
+    }
+
+
+def _summarize_tool_outputs(outputs: Any) -> dict:
+    # Log the shape of the result, not the user's meal data itself.
+    if not isinstance(outputs, dict):
+        return {"type": type(outputs).__name__}
+
+    try:
+        size = len(json.dumps(outputs, default=str))
+    except (TypeError, ValueError):
+        size = -1
+
+    return {
+        "keys": sorted(str(key) for key in outputs.keys()),
+        "approx_chars": size,
+        "has_error": "error" in outputs,
+    }
+
+
+@traceable(
+    name="gemini.generate_content_stream",
+    run_type="llm",
+    process_inputs=_summarize_llm_inputs,
+    process_outputs=_summarize_llm_outputs,
+)
+def _stream_gemini(
+    genai_client: Any,
+    model_name: str,
+    contents: list[Any],
+    system_instruction: str,
+    tools: list[Any],
+    on_token: Callable[[str], None] | None,
+    progress: dict,
+) -> dict:
+    """One streamed Gemini call. A failed fallback attempt shows up in
+    LangSmith as its own errored run, so model fallbacks are visible."""
+
+    annotate_run(
+        {
+            "ls_provider": "google_genai",
+            "ls_model_name": model_name,
+            "ls_temperature": 0.3,
+        }
+    )
+
+    stream = genai_client.models.generate_content_stream(
+        model=model_name,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            tools=tools,
+            temperature=0.3,
+            max_output_tokens=1600,
+        ),
+    )
+
+    text_chunks = []
+    response_parts = []
+    usage = None
+
+    for chunk in stream:
+        if chunk.text:
+            text_chunks.append(chunk.text)
+
+            # Track partial output even without a callback.
+            progress["emitted_any"] = True
+
+            if on_token:
+                on_token(chunk.text)
+
+        if chunk.candidates:
+            content = chunk.candidates[0].content
+
+            if content and content.parts:
+                response_parts.extend(content.parts)
+
+        chunk_usage = getattr(chunk, "usage_metadata", None)
+
+        if chunk_usage is not None:
+            usage = chunk_usage
+
+    return {
+        "text_chunks": text_chunks,
+        "response_parts": response_parts,
+        "usage_metadata": _usage_dict(usage),
+    }
+
+
+@traceable(
+    name="health_tool",
+    run_type="tool",
+    process_inputs=_summarize_tool_inputs,
+    process_outputs=_summarize_tool_outputs,
+)
+def _execute_tool(
+    tool_executor: Callable[..., dict],
+    tool_name: str,
+    arguments: dict,
+) -> dict:
+    annotate_run({"tool_name": tool_name})
+
+    result = tool_executor(
+        tool_name=tool_name,
+        arguments=arguments,
+    )
+
+    if not isinstance(result, dict):
+        result = {"result": result}
+
+    return result
 
 
 def build_chat_workflow():
@@ -58,40 +254,23 @@ def build_chat_workflow():
         last_error = None
 
         for model_name in model_names:
-            emitted_any = False
+            progress = {"emitted_any": False}
 
             try:
                 logger.info("Trying Gemini model: %s", model_name)
 
-                stream = client.models.generate_content_stream(
-                    model=model_name,
+                result = _stream_gemini(
+                    genai_client=client,
+                    model_name=model_name,
                     contents=state["contents"],
-                    config=types.GenerateContentConfig(
-                        system_instruction=state["system_instruction"],
-                        tools=available_tools,
-                        temperature=0.3,
-                        max_output_tokens=1600,
-                    ),
+                    system_instruction=state["system_instruction"],
+                    tools=available_tools,
+                    on_token=on_token,
+                    progress=progress,
                 )
 
-                text_chunks = []
-                response_parts = []
-
-                for chunk in stream:
-                    if chunk.text:
-                        text_chunks.append(chunk.text)
-
-                        # Track partial output even without a callback.
-                        emitted_any = True
-
-                        if on_token:
-                            on_token(chunk.text)
-
-                    if chunk.candidates:
-                        content = chunk.candidates[0].content
-
-                        if content and content.parts:
-                            response_parts.extend(content.parts)
+                text_chunks = result["text_chunks"]
+                response_parts = result["response_parts"]
 
                 if not response_parts and text_chunks:
                     response_parts = [
@@ -169,7 +348,7 @@ def build_chat_workflow():
                     last_error = exc
 
                     # Do not switch models after partial output.
-                    if emitted_any:
+                    if progress["emitted_any"]:
                         raise
 
                     continue
@@ -185,7 +364,7 @@ def build_chat_workflow():
                 )
 
                 # Do not switch models after partial output.
-                if emitted_any:
+                if progress["emitted_any"]:
                     raise
 
                 last_error = exc
@@ -208,13 +387,11 @@ def build_chat_workflow():
             arguments = dict(function_call.args or {})
 
             try:
-                result = state["tool_executor"](
+                result = _execute_tool(
+                    tool_executor=state["tool_executor"],
                     tool_name=tool_name,
                     arguments=arguments,
                 )
-
-                if not isinstance(result, dict):
-                    result = {"result": result}
 
             except Exception:
                 logger.exception(

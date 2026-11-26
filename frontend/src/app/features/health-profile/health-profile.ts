@@ -1,4 +1,3 @@
-
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectorRef,
@@ -12,6 +11,17 @@ import {
   HealthProfileService,
   HealthProfile,
 } from '../../core/services/health-profile';
+import { DashboardCache } from '../../core/services/dashboard-cache';
+
+/** Turns an API value (string, number or null) into a form-friendly number. */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 @Component({
   selector: 'app-health-profile',
@@ -25,6 +35,12 @@ export class HealthProfileComponent implements OnInit {
   dietaryPreferences = '';
   dailyBudget: number | null = null;
 
+  // Optional daily targets. Empty means "no target".
+  caloriesTarget: number | null = null;
+  proteinTarget: number | null = null;
+  carbsTarget: number | null = null;
+  fatTarget: number | null = null;
+
   loadingProfile = false;
   saving = false;
   message = '';
@@ -34,7 +50,8 @@ export class HealthProfileComponent implements OnInit {
 
   constructor(
     private profileService: HealthProfileService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private dashboardCache: DashboardCache,
   ) {}
 
   ngOnInit(): void {
@@ -45,15 +62,12 @@ export class HealthProfileComponent implements OnInit {
     this.loadingProfile = true;
     this.error = '';
     this.message = '';
+    this.cdr.markForCheck();
 
     try {
       const profile = await this.profileService.getMyProfile();
 
-      this.savedProfile = profile;
-      this.goals = profile.goals;
-      this.dietaryPreferences = profile.dietary_preferences;
-      this.dailyBudget = Number(profile.daily_budget);
-
+      this.applyProfile(profile);
       this.message = 'Your saved profile has been loaded.';
     } catch (err: unknown) {
       const e = err as {
@@ -78,6 +92,25 @@ export class HealthProfileComponent implements OnInit {
     }
   }
 
+  private applyProfile(profile: HealthProfile): void {
+    this.savedProfile = profile;
+    this.goals = profile.goals;
+    this.dietaryPreferences = profile.dietary_preferences;
+    this.dailyBudget = Number(profile.daily_budget);
+    this.caloriesTarget = toNumberOrNull(profile.daily_calories_target);
+    this.proteinTarget = toNumberOrNull(profile.daily_protein_target_g);
+    this.carbsTarget = toNumberOrNull(profile.daily_carbs_target_g);
+    this.fatTarget = toNumberOrNull(profile.daily_fat_target_g);
+  }
+
+  /** Optional fields must be empty or a positive number. */
+  private invalidTarget(value: number | null): boolean {
+    return (
+      value !== null &&
+      (!Number.isFinite(value) || value <= 0 || value > 99999999)
+    );
+  }
+
   async submit(): Promise<void> {
     this.error = '';
     this.message = '';
@@ -93,20 +126,40 @@ export class HealthProfileComponent implements OnInit {
       return;
     }
 
+    // An emptied number input gives null (or an empty string) in Angular.
+    const targets = [
+      this.caloriesTarget,
+      this.proteinTarget,
+      this.carbsTarget,
+      this.fatTarget,
+    ].map(value => toNumberOrNull(value));
+
+    if (targets.some(value => this.invalidTarget(value))) {
+      this.error =
+        'Daily targets must be a number greater than zero, or left empty.';
+      return;
+    }
+
+    const [calories, protein, carbs, fat] = targets;
+
     this.saving = true;
     this.cdr.markForCheck();
 
     try {
-      this.savedProfile = await this.profileService.upsertMyProfile({
+      const saved = await this.profileService.upsertMyProfile({
         goals: this.goals.trim(),
         dietary_preferences: this.dietaryPreferences.trim(),
         daily_budget: this.dailyBudget,
+        daily_calories_target: calories,
+        daily_protein_target_g: protein,
+        daily_carbs_target_g: carbs,
+        daily_fat_target_g: fat,
       });
 
-      this.goals = this.savedProfile.goals;
-      this.dietaryPreferences =
-        this.savedProfile.dietary_preferences;
-      this.dailyBudget = Number(this.savedProfile.daily_budget);
+      this.applyProfile(saved);
+
+      // The dashboard must not show numbers calculated from old targets.
+      this.dashboardCache.clear();
 
       this.message = 'Health profile saved successfully.';
     } catch (err: unknown) {
@@ -119,9 +172,11 @@ export class HealthProfileComponent implements OnInit {
       console.error('Profile save failed:', err);
 
       this.error =
-        e.error?.detail ??
-        e.message ??
-        'Could not save profile. Check the API and try again.';
+        e.status === 422
+          ? 'Some values are invalid. Check the numbers and try again.'
+          : e.error?.detail ??
+            e.message ??
+            'Could not save profile. Check the API and try again.';
     } finally {
       this.saving = false;
       this.cdr.markForCheck();

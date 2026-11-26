@@ -19,9 +19,12 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.ai.chat_workflow import build_chat_workflow
+from app.ai.intent import classify_intent
+from app.ai.tracing import graph_run_config
 from app.ai.agents.builder import build_health_graph
 from app.ai.agents.nutrition_validator import validate_meals
 from app.auth import get_current_user_id
+from app.rate_limit import chat_rate_limit
 from app.db import SessionLocal, get_db
 from app.models import (
     ChatMessage,
@@ -562,8 +565,12 @@ def get_user_health_context(
 # INTENT CLASSIFICATION
 # ============================================================
 
-def classify_intent(message: str) -> str:
-    """Route simple data queries to SQL and analytical questions to Gemini."""
+def classify_intent_legacy(message: str) -> str:
+    """Original substring router.
+
+    Not used by the app any more (see app.ai.intent.classify_intent). It is
+    kept only so `python -m evals.run_evals` can compare old vs new accuracy.
+    """
 
     text = re.sub(r"\s+", " ", message.lower().strip())
     text = re.sub(r"[’']", "'", text)
@@ -1252,6 +1259,8 @@ def invoke_health_graph(
     history: list[ChatMessage],
     context: dict,
     on_token=None,
+    thread_id=None,
+    intent: str | None = None,
 ) -> dict:
     """Prepare shared graph state and execute HealthGPT."""
 
@@ -1282,7 +1291,16 @@ def invoke_health_graph(
     if on_token is not None:
         graph_input["on_token"] = on_token
 
-    return health_graph.invoke(graph_input)
+    # Names, tags and metadata make this request easy to find in LangSmith
+    # (filter by intent, group by conversation). No raw user id is sent.
+    config = graph_run_config(
+        user_id=user_id,
+        thread_id=thread_id,
+        intent=intent,
+        streaming=on_token is not None,
+    )
+
+    return health_graph.invoke(graph_input, config=config)
 
 def validate_graph_answer(graph_result: dict) -> tuple[str, str, int]:
     """Extract and validate the final graph response."""
@@ -1478,7 +1496,7 @@ def get_chat_context(
 # NON-STREAMING CHAT ENDPOINT
 # ============================================================
 
-@router.post("/message")
+@router.post("/message", dependencies=[Depends(chat_rate_limit)])
 def chat_with_health_assistant(
     request: ChatMessageRequest,
     user_id=Depends(get_current_user_id),
@@ -1550,6 +1568,8 @@ def chat_with_health_assistant(
             request_message=request.message,
             history=history,
             context=context,
+            thread_id=thread.id,
+            intent=intent,
         )
 
         logger.info(
@@ -1622,7 +1642,7 @@ def chat_with_health_assistant(
 # STREAMING CHAT ENDPOINT
 # ============================================================
 
-@router.post("/message/stream")
+@router.post("/message/stream", dependencies=[Depends(chat_rate_limit)])
 def chat_with_health_assistant_stream(
     request: ChatMessageRequest,
     user_id=Depends(get_current_user_id),
@@ -1703,6 +1723,8 @@ def chat_with_health_assistant_stream(
                 history=history,
                 context=context,
                 on_token=emit_token,
+                thread_id=thread.id,
+                intent=intent,
             )
 
             answer, model_name, meals_considered = validate_graph_answer(

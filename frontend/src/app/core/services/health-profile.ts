@@ -10,12 +10,21 @@ export interface HealthProfile {
   goals: string;
   dietary_preferences: string;
   daily_budget: string | number;
+  daily_calories_target?: string | number | null;
+  daily_protein_target_g?: string | number | null;
+  daily_carbs_target_g?: string | number | null;
+  daily_fat_target_g?: string | number | null;
 }
 
 export interface HealthProfileInput {
   goals: string;
   dietary_preferences: string;
   daily_budget: number;
+  /** null clears a target; the API treats these as optional. */
+  daily_calories_target: number | null;
+  daily_protein_target_g: number | null;
+  daily_carbs_target_g: number | null;
+  daily_fat_target_g: number | null;
 }
 
 @Injectable({

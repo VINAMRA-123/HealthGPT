@@ -30,6 +30,9 @@ build/
 *.sqlite
 *.sqlite3
 
+# Personal notes (not for the public repo)
+RESUME_NOTES.md
+
 # IDE and operating system files
 .idea/
 .DS_Store

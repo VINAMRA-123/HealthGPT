@@ -5,7 +5,9 @@ import time
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.rate_limit import food_search_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -480,7 +482,7 @@ def _cache_set(key: tuple[str, int, int], payload: dict[str, Any]) -> None:
 # Route
 # ---------------------------------------------------------------------------
 
-@router.get("/search")
+@router.get("/search", dependencies=[Depends(food_search_rate_limit)])
 async def search_foods(
     q: str = Query(..., min_length=2, max_length=100),
     page: int = Query(1, ge=1, le=50),
