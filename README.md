@@ -302,6 +302,24 @@ The first evaluation found a real bug: the original router matched keywords as s
 
 <!-- Paste your own results here after running `python -m evals.run_evals`. -->
 
+### 5.7a Scope guardrail (off-topic questions)
+
+HealthGPT only answers nutrition, food, fitness and meal/budget-tracking questions. Anything else (celebrity tours, sports, coding, politics, finance, poems...) gets a fixed refusal.
+
+- **Layer 1, `app/ai/scope.py`:** a free, instant keyword check that runs before any database or LLM call. It refuses only when a message matches an unrelated topic and has no health vocabulary, so real questions are not blocked by mistake. Refused requests are tagged `path:guardrail` in LangSmith and cost no Gemini tokens.
+- **Layer 2, system prompt:** a `SCOPE RULES` section tells Gemini to refuse anything the keyword check could not judge, and to ignore "forget your rules" style instructions.
+- Limitation: this is a keyword filter plus a prompt rule, not a guarantee. A cleverly worded off-topic request can still get through; review `path:llm` traces to find gaps and add terms.
+
+### 5.7b Latency percentiles (p50 / p90 / p95 / p99)
+
+Two ways to get real latency numbers:
+
+1. **Live, from the running API:** set `METRICS_TOKEN` on the server, then
+   `GET /api/v1/metrics/chat` with header `X-Metrics-Token: <token>`. Returns count, mean, p50, p90, p95, p99, max and first-token time per path (`sql`, `llm`, `guardrail`), plus error rate. It keeps the last 2000 requests in memory and resets when the server restarts (Render free tier sleeps).
+2. **Long-term, from LangSmith:** `python -m evals.latency_report --days 7` (add `--json` for machine output).
+
+Latency measures graph execution only, not network transfer to the browser.
+
 ### 5.8 Reliability and abuse protection
 
 - **Rate limiting:** chat is limited per user and food search per IP, returning HTTP 429 with a `Retry-After` header. Chat is the endpoint that costs money (Gemini).

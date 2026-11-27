@@ -9,6 +9,7 @@ from app.api.food_search import router as food_search_router
 from app.api.profiles import router as profiles_router
 from app.api.meals import router as meals_router
 from app.api.chat import router as chat_router
+from app.api.metrics import router as metrics_router
 from app.db import check_database_connection
 from app.ai.tracing import configure_tracing
 
@@ -48,6 +49,7 @@ app.include_router(profiles_router)
 app.include_router(meals_router)
 app.include_router(food_search_router)
 app.include_router(chat_router)
+app.include_router(metrics_router)
 
 @app.get("/health", tags=["System"])
 def health_check():

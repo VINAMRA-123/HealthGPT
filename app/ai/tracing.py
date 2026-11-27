@@ -152,8 +152,14 @@ def graph_run_config(
 
     if intent:
         tags.append(f"intent:{intent}")
-        # "path:sql" means the question was answered without calling an LLM.
-        tags.append("path:llm" if intent == "llm" else "path:sql")
+        # path:sql = answered from the database without an LLM call,
+        # path:guardrail = refused as off-topic, path:llm = Gemini.
+        if intent == "llm":
+            tags.append("path:llm")
+        elif intent == "off_topic":
+            tags.append("path:guardrail")
+        else:
+            tags.append("path:sql")
         metadata["intent"] = intent
 
     if thread_id is not None:

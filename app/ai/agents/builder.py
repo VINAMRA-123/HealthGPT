@@ -7,6 +7,7 @@ from langgraph.graph import START, END, StateGraph
 from app.ai.graph.state import HealthGPTState
 from app.ai.agents.data_agent import build_data_agent
 from app.ai.agents.nutrition_agent import build_nutrition_agent
+from app.ai.scope import OFF_TOPIC, OFF_TOPIC_REPLY, check_scope
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,14 @@ def build_health_graph(
         if not message:
             return {
                 "intent": "invalid",
+                "selected_agents": [],
+            }
+
+        # Guardrail: refuse unrelated questions before spending any
+        # database or LLM work on them.
+        if check_scope(message) == OFF_TOPIC:
+            return {
+                "intent": "off_topic",
                 "selected_agents": [],
             }
 
@@ -221,7 +230,12 @@ def build_health_graph(
 
         if not results:
 
-            if intent == "invalid":
+            if intent == "off_topic":
+
+                answer = OFF_TOPIC_REPLY
+                model = "guardrail"
+
+            elif intent == "invalid":
 
                 answer = "Please enter a question."
                 model = "none"
