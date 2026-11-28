@@ -1,3 +1,4 @@
+
 """Run HealthGPT's offline evaluations.
 
     python -m evals.run_evals                  # print results
@@ -29,20 +30,37 @@ from evals.datasets import ROUTER_CASES, VALIDATOR_CASES  # noqa: E402
 
 LLM_INTENT = "llm"
 
+# Intent classes implemented by both the legacy and current routers.
+LEGACY_SUPPORTED_INTENTS = {
+    "daily_nutrition",
+    "period_nutrition",
+    "recent_meals",
+    "weekly_budget",
+    "weekly_protein",
+    "llm",
+}
+
 
 def _pct(numerator: int, denominator: int) -> float:
     return round(100 * numerator / denominator, 1) if denominator else 0.0
 
 
-def evaluate_router(name: str, predict: Callable[[str], str]) -> dict:
+def evaluate_router(
+    name: str,
+    predict: Callable[[str], str],
+    cases: list[dict] | None = None,
+) -> dict:
+    cases = ROUTER_CASES if cases is None else cases
+
     predictions = [
-        (case, predict(case["question"])) for case in ROUTER_CASES
+        (case, predict(case["question"])) for case in cases
     ]
     correct = sum(1 for case, got in predictions if got == case["expected"])
 
-    intents = sorted({case["expected"] for case in ROUTER_CASES} | {
-        got for _, got in predictions
-    })
+    intents = sorted(
+        {case["expected"] for case in cases}
+        | {got for _, got in predictions}
+    )
     per_intent = {}
 
     for intent in intents:
@@ -51,7 +69,9 @@ def evaluate_router(name: str, predict: Callable[[str], str]) -> dict:
             if got == intent and case["expected"] == intent
         )
         predicted = sum(1 for _, got in predictions if got == intent)
-        actual = sum(1 for case, _ in predictions if case["expected"] == intent)
+        actual = sum(
+            1 for case, _ in predictions if case["expected"] == intent
+        )
         per_intent[intent] = {
             "precision": _pct(true_positive, predicted),
             "recall": _pct(true_positive, actual),
@@ -102,7 +122,9 @@ def evaluate_validator() -> dict:
         if got == "flagged" and case["expected"] == "flagged"
     )
     predicted_flagged = sum(1 for _, got in rows if got == "flagged")
-    actual_flagged = sum(1 for case, _ in rows if case["expected"] == "flagged")
+    actual_flagged = sum(
+        1 for case, _ in rows if case["expected"] == "flagged"
+    )
 
     return {
         "cases": len(rows),
@@ -212,22 +234,51 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    routers: dict[str, Callable[[str], str]] = {"word-boundary": classify_intent}
+    routers: dict[str, Callable[[str], str]] = {
+        "word-boundary": classify_intent
+    }
     reports = {}
 
     try:
         from app.api.chat import classify_intent_legacy
 
-        routers = {"substring-legacy": classify_intent_legacy, **routers}
+        routers = {
+            "substring-legacy": classify_intent_legacy,
+            **routers,
+        }
     except Exception as exc:
         print(
             "Could not import the legacy router "
             f"({type(exc).__name__}: {exc}); comparing the new router only."
         )
 
+    # Full evaluation across all current intent classes.
     for label, predict in routers.items():
         reports[label] = evaluate_router(f"Router: {label}", predict)
         print_router(reports[label])
+
+    # Fairer comparison: evaluate both routers only on intent classes
+    # that existed in the legacy implementation.
+    shared_cases = [
+        case for case in ROUTER_CASES
+        if case["expected"] in LEGACY_SUPPORTED_INTENTS
+    ]
+
+    shared_reports = {}
+
+    print(
+        f"\nShared-intent comparison "
+        f"({len(shared_cases)} questions, "
+        f"{len(LEGACY_SUPPORTED_INTENTS)} common intent classes)"
+    )
+
+    for label, predict in routers.items():
+        shared_reports[label] = evaluate_router(
+            f"Shared intents: {label}",
+            predict,
+            cases=shared_cases,
+        )
+        print_router(shared_reports[label])
 
     validator = evaluate_validator()
     print(
@@ -256,6 +307,8 @@ def main() -> int:
             json.dump(
                 {
                     "routers": reports,
+                    "shared_intent_routers": shared_reports,
+                    "shared_intent_cases": len(shared_cases),
                     "validator": validator,
                     "composition": composition,
                 },

@@ -1,0 +1,425 @@
+{
+  "routers": {
+    "substring-legacy": {
+      "name": "Router: substring-legacy",
+      "cases": 83,
+      "correct": 54,
+      "accuracy_pct": 65.1,
+      "general_questions_wrongly_sent_to_sql": 2,
+      "data_questions_missed_by_sql": 26,
+      "per_intent": {
+        "daily_budget": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 2
+        },
+        "daily_nutrition": {
+          "precision": 100.0,
+          "recall": 64.3,
+          "support": 14
+        },
+        "day_meals": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 13
+        },
+        "llm": {
+          "precision": 45.8,
+          "recall": 91.7,
+          "support": 24
+        },
+        "period_meals": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 3
+        },
+        "period_nutrition": {
+          "precision": 87.5,
+          "recall": 100.0,
+          "support": 7
+        },
+        "recent_meals": {
+          "precision": 77.8,
+          "recall": 70.0,
+          "support": 10
+        },
+        "weekly_budget": {
+          "precision": 100.0,
+          "recall": 83.3,
+          "support": 6
+        },
+        "weekly_protein": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 4
+        }
+      },
+      "failures": [
+        {
+          "question": "Did I have breakfast yesterday?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "Have I logged lunch today?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "Show my food log from yesterday.",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "What did I eat last night?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How many meals did I have today?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How many meals did I log this week?",
+          "expected": "period_meals",
+          "got": "llm"
+        },
+        {
+          "question": "Give me meals from the past seven days.",
+          "expected": "period_meals",
+          "got": "llm"
+        },
+        {
+          "question": "What foods did I eat this week?",
+          "expected": "period_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How much protein did I consume yesterday?",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "How much did I spend yesterday?",
+          "expected": "daily_budget",
+          "got": "llm"
+        },
+        {
+          "question": "How much did I spend today?",
+          "expected": "daily_budget",
+          "got": "llm"
+        },
+        {
+          "question": "How much fat did I eat today?",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "How many calories did I log today?",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "total calories I've had today",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "What did I eat recently?",
+          "expected": "recent_meals",
+          "got": "llm"
+        },
+        {
+          "question": "give me my last five foods I ate",
+          "expected": "recent_meals",
+          "got": "llm"
+        },
+        {
+          "question": "show my last 5 foods",
+          "expected": "recent_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How much did I spend on food this week?",
+          "expected": "weekly_budget",
+          "got": "llm"
+        },
+        {
+          "question": "What did I eat yesterday?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How many meals did I log yesterday?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How many meals have I logged today?",
+          "expected": "day_meals",
+          "got": "recent_meals"
+        },
+        {
+          "question": "How many calories did I have yesterday?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "give my yesterday meals?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "what foods did I eat yesterday?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "Show my meals from yesterday",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "What did I eat today?",
+          "expected": "day_meals",
+          "got": "llm"
+        },
+        {
+          "question": "Show my nutrition summary today",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "How many calories are in pasta?",
+          "expected": "llm",
+          "got": "period_nutrition"
+        },
+        {
+          "question": "What is the latest research on protein?",
+          "expected": "llm",
+          "got": "recent_meals"
+        }
+      ]
+    },
+    "word-boundary": {
+      "name": "Router: word-boundary",
+      "cases": 83,
+      "correct": 83,
+      "accuracy_pct": 100.0,
+      "general_questions_wrongly_sent_to_sql": 0,
+      "data_questions_missed_by_sql": 0,
+      "per_intent": {
+        "daily_budget": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 2
+        },
+        "daily_nutrition": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 14
+        },
+        "day_meals": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 13
+        },
+        "llm": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 24
+        },
+        "period_meals": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 3
+        },
+        "period_nutrition": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 7
+        },
+        "recent_meals": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 10
+        },
+        "weekly_budget": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 6
+        },
+        "weekly_protein": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 4
+        }
+      },
+      "failures": []
+    }
+  },
+  "shared_intent_routers": {
+    "substring-legacy": {
+      "name": "Shared intents: substring-legacy",
+      "cases": 65,
+      "correct": 54,
+      "accuracy_pct": 83.1,
+      "general_questions_wrongly_sent_to_sql": 2,
+      "data_questions_missed_by_sql": 9,
+      "per_intent": {
+        "daily_nutrition": {
+          "precision": 100.0,
+          "recall": 64.3,
+          "support": 14
+        },
+        "llm": {
+          "precision": 71.0,
+          "recall": 91.7,
+          "support": 24
+        },
+        "period_nutrition": {
+          "precision": 87.5,
+          "recall": 100.0,
+          "support": 7
+        },
+        "recent_meals": {
+          "precision": 87.5,
+          "recall": 70.0,
+          "support": 10
+        },
+        "weekly_budget": {
+          "precision": 100.0,
+          "recall": 83.3,
+          "support": 6
+        },
+        "weekly_protein": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 4
+        }
+      },
+      "failures": [
+        {
+          "question": "How much protein did I consume yesterday?",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "How much fat did I eat today?",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "How many calories did I log today?",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "total calories I've had today",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "What did I eat recently?",
+          "expected": "recent_meals",
+          "got": "llm"
+        },
+        {
+          "question": "give me my last five foods I ate",
+          "expected": "recent_meals",
+          "got": "llm"
+        },
+        {
+          "question": "show my last 5 foods",
+          "expected": "recent_meals",
+          "got": "llm"
+        },
+        {
+          "question": "How much did I spend on food this week?",
+          "expected": "weekly_budget",
+          "got": "llm"
+        },
+        {
+          "question": "Show my nutrition summary today",
+          "expected": "daily_nutrition",
+          "got": "llm"
+        },
+        {
+          "question": "How many calories are in pasta?",
+          "expected": "llm",
+          "got": "period_nutrition"
+        },
+        {
+          "question": "What is the latest research on protein?",
+          "expected": "llm",
+          "got": "recent_meals"
+        }
+      ]
+    },
+    "word-boundary": {
+      "name": "Shared intents: word-boundary",
+      "cases": 65,
+      "correct": 65,
+      "accuracy_pct": 100.0,
+      "general_questions_wrongly_sent_to_sql": 0,
+      "data_questions_missed_by_sql": 0,
+      "per_intent": {
+        "daily_nutrition": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 14
+        },
+        "llm": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 24
+        },
+        "period_nutrition": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 7
+        },
+        "recent_meals": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 10
+        },
+        "weekly_budget": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 6
+        },
+        "weekly_protein": {
+          "precision": 100.0,
+          "recall": 100.0,
+          "support": 4
+        }
+      },
+      "failures": []
+    }
+  },
+  "shared_intent_cases": 65,
+  "validator": {
+    "cases": 16,
+    "correct": 16,
+    "accuracy_pct": 100.0,
+    "flagged_precision_pct": 100.0,
+    "flagged_recall_pct": 100.0,
+    "failures": []
+  },
+  "composition": {
+    "by_intent": {
+      "day_meals": 13,
+      "period_meals": 3,
+      "daily_nutrition": 14,
+      "daily_budget": 2,
+      "llm": 24,
+      "period_nutrition": 7,
+      "recent_meals": 10,
+      "weekly_budget": 6,
+      "weekly_protein": 4
+    },
+    "sql_answerable_pct_of_test_set": 71.1
+  }
+}
