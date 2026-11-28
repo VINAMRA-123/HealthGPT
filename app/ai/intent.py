@@ -15,6 +15,8 @@ logged meals instead of being sent to the LLM.
 import re
 from functools import lru_cache
 
+from app.ai.query_parse import has_day_range
+
 # --- Questions that need reasoning always go to the LLM. ---------------------
 # Matched as word *prefixes* so "calculated", "suggestions", "explained" count.
 ANALYTICAL_PREFIXES = (
@@ -38,6 +40,7 @@ ANALYTICAL_PREFIXES = (
     "how to reach",
     "based on my",
     "why did",
+    "can i ",
     "explain",
 )
 
@@ -57,6 +60,9 @@ NUTRIENTS = (
 )
 
 TODAY = ("today", "today's", "this day")
+
+# Days the daily nutrition / budget handlers can answer for.
+DAY_REF = TODAY + ("yesterday", "yesterday's")
 
 INTAKE = (
     "consumed",
@@ -78,7 +84,14 @@ PERIOD_INTAKE = INTAKE + ("how much", "how many")
 
 MEALS = ("meal", "meals", "food", "foods", "ate", "eaten", "eat", "eating")
 
-RECENT_TIME = ("recent", "recently", "latest", "logged", "history")
+RECENT_TIME = (
+    "recent",
+    "recently",
+    "latest",
+    "logged",
+    "history",
+    "last",
+)
 
 BUDGET = (
     "budget",
@@ -120,7 +133,13 @@ NUTRITION_SUMMARY = (
 # "yesterday" / "today" questions about which meals were logged. Phrases are
 # past-tense lookups on purpose, so advice such as "Can I eat rice today?"
 # still goes to the LLM.
-DAY_WORDS = ("yesterday", "yesterday's", "today", "today's")
+DAY_WORDS = (
+    "yesterday",
+    "yesterday's",
+    "today",
+    "today's",
+    "last night",
+)
 
 DAY_MEAL_PHRASES = (
     "did i eat",
@@ -139,8 +158,53 @@ DAY_MEAL_PHRASES = (
     "my meals",
     "show my meals",
     "list my meals",
+    "food log",
+    "food entries",
+    "food diary",
+    "show my food",
+
+    # Additional natural-language variations
+    "yesterday meals",
+    "yesterday's meals",
+    "meals yesterday",
+    "foods yesterday",
+    "yesterday food",
+    "yesterday's food",
+    "today meals",
+    "today's meals",
+    "meals today",
+    "foods today",
 )
 
+# Lookups over a longer period: "how many meals this week",
+# "meals from the past seven days", "what did I eat last week".
+PERIOD_MEAL_PHRASES = (
+    "how many meals",
+    "how many foods",
+    "my meals",
+    "show my meals",
+    "list my meals",
+    "list meals",
+    "give me meals",
+    "give me my meals",
+    "show meals",
+    "meals from",
+    "meals in",
+    "meals during",
+    "meals i logged",
+    "meals did i",
+    "food log",
+    "food entries",
+    "food diary",
+    "foods did i",
+    "did i eat",
+    "did i log",
+    "i ate",
+    "i logged",
+    "i've eaten",
+    "have i eaten",
+    "have i logged",
+)
 
 @lru_cache(maxsize=None)
 def _pattern(terms: tuple[str, ...], prefix: bool) -> re.Pattern:
@@ -157,8 +221,9 @@ def _has(text: str, terms: tuple[str, ...], *, prefix: bool = False) -> bool:
 
 
 def classify_intent(message: str) -> str:
-    """Return one of: daily_nutrition, period_nutrition, day_meals,
-    recent_meals, weekly_budget, weekly_protein, llm."""
+    """Return one of: daily_nutrition, daily_budget, period_nutrition,
+    day_meals, period_meals, recent_meals, weekly_budget, weekly_protein,
+    llm."""
     if not isinstance(message, str):
         return "llm"
 
@@ -170,7 +235,7 @@ def classify_intent(message: str) -> str:
 
     has_nutrient = _has(text, NUTRIENTS)
 
-    if has_nutrient and _has(text, TODAY) and _has(text, INTAKE):
+    if has_nutrient and _has(text, DAY_REF) and _has(text, INTAKE):
         return "daily_nutrition"
 
     if _has(text, NUTRITION_SUMMARY) and _has(text, TODAY):
@@ -185,6 +250,24 @@ def classify_intent(message: str) -> str:
         and not _has(text, BUDGET)
     ):
         return "day_meals"
+
+    # "How many meals did I log this week?", "meals from the past 7 days".
+    if (
+        has_day_range(text)
+        and _has(text, MEALS)
+        and _has(text, PERIOD_MEAL_PHRASES)
+        and not _has(text, BUDGET)
+        and not has_nutrient
+    ):
+        return "period_meals"
+
+    # "How much did I spend yesterday?" (this week is weekly_budget below).
+    if (
+        _has(text, BUDGET)
+        and _has(text, DAY_REF)
+        and not _has(text, WEEKLY)
+    ):
+        return "daily_budget"
 
     if _has(text, MEALS) and _has(text, RECENT_TIME):
         return "recent_meals"

@@ -20,10 +20,17 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.ai.chat_workflow import build_chat_workflow
+from app.ai.direct_answers import (
+    HANDLERS as DIRECT_HANDLERS,
+    flagged_note,
+    summarize_validated,
+    validated_rows,
+)
 from app.ai.intent import classify_intent
 from app.ai.scope import classify_request
 from app.observability import chat_metrics
 from app.ai.tracing import graph_run_config
+from app.ai.query_parse import resolve_date_range
 from app.ai.agents.builder import build_health_graph
 from app.ai.agents.nutrition_validator import validate_meals
 from app.auth import get_current_user_id
@@ -824,29 +831,29 @@ def classify_intent_legacy(message: str) -> str:
 import re
 
 
-def extract_period_days(message: str, default: int = 7) -> int:
-    message = message.lower()
+# def extract_period_days(message: str, default: int = 7) -> int:
+#     message = message.lower()
 
-    match = re.search(
-        r"(?:last|past|for)\s+(\d+)\s+days?",
-        message,
-    )
+#     match = re.search(
+#         r"(?:last|past|for)\s+(\d+)\s+days?",
+#         message,
+#     )
 
-    if match:
-        return max(1, min(int(match.group(1)), 365))
+#     if match:
+#         return max(1, min(int(match.group(1)), 365))
 
-    match = re.search(
-        r"(?:last|past|for)\s+(\d+)\s+weeks?",
-        message,
-    )
+#     match = re.search(
+#         r"(?:last|past|for)\s+(\d+)\s+weeks?",
+#         message,
+#     )
 
-    if match:
-        return max(1, min(int(match.group(1)) * 7, 365))
+#     if match:
+#         return max(1, min(int(match.group(1)) * 7, 365))
 
-    if "fortnight" in message or "two weeks" in message:
-        return 14
+#     if "fortnight" in message or "two weeks" in message:
+#         return 14
 
-    return default
+#     return default
 
 def get_direct_answer(
     intent: str,
@@ -854,7 +861,16 @@ def get_direct_answer(
     user_id: UUID,
     user_message: str = "",
 ) -> dict | None:
-    """Answer supported nutrition questions directly from the database."""
+    """Answer supported nutrition questions directly from the database.
+
+    Most intents live in app/ai/direct_answers.py. The weekly budget /
+    protein and period nutrition answers are still built below.
+    """
+
+    handler = DIRECT_HANDLERS.get(intent)
+
+    if handler is not None:
+        return handler(db, user_id, user_message)
 
     # --------------------------------------------------------
     # Weekly budget and weekly protein
@@ -885,27 +901,24 @@ def get_direct_answer(
         if profile is None:
             return None
 
-        totals = (
-            db.query(
-                func.coalesce(
-                    func.sum(MealLog.cost), 0
-                ).label("spent"),
-                func.coalesce(
-                    func.sum(MealLog.protein_g), 0
-                ).label("protein"),
-                func.count(MealLog.id).label("meal_count"),
-            )
+        week_meals = (
+            db.query(MealLog)
             .filter(
                 MealLog.user_id == user_id,
                 MealLog.consumed_at >= start_utc,
                 MealLog.consumed_at < end_utc,
             )
-            .one()
+            .all()
         )
 
-        spent = float(totals.spent or 0)
-        protein = float(totals.protein or 0)
-        meal_count = int(totals.meal_count or 0)
+        # Spending counts every meal. Protein counts only meals whose
+        # nutrition passed validation.
+        nutrition = summarize_validated(validated_rows(week_meals))
+
+        spent = sum(float(meal.cost or 0) for meal in week_meals)
+        protein = nutrition["protein_g"]
+        flagged_count = nutrition["flagged_count"]
+        meal_count = len(week_meals)
 
         week_label = (
             f"{start_ist.strftime('%d %b %Y')} to "
@@ -960,14 +973,23 @@ def get_direct_answer(
                 f"{protein:.1f} g."
             )
 
-            if target is not None:
-                weekly_target = float(target) * 7
+            if flagged_count:
+                answer += (
+                    "\n\n" + flagged_note(flagged_count)
+                    + " I won't compare this with your weekly target "
+                    "because the total is partial."
+                )
+
+            elif target is not None:
+                elapsed_days = now.weekday() + 1
+                weekly_target = float(target) * elapsed_days
                 difference = protein - weekly_target
 
                 answer += (
                     f"\n\nYour configured daily protein target is "
                     f"{float(target):.1f} g, equivalent to "
-                    f"{weekly_target:.1f} g per week. "
+                    f"{weekly_target:.1f} g for {elapsed_days} "
+                    f"elapsed day(s) this week. "
                 )
 
                 if difference >= 0:
@@ -999,268 +1021,30 @@ def get_direct_answer(
         }
 
     # --------------------------------------------------------
-    # Recent meals
-    # --------------------------------------------------------
-
-    if intent == "recent_meals":
-
-        meals = (
-            db.query(MealLog)
-            .filter(MealLog.user_id == user_id)
-            .order_by(MealLog.consumed_at.desc())
-            .limit(5)
-            .all()
-        )
-
-        if not meals:
-            return {
-                "answer": "You have no logged meals yet.",
-                "model": "sql",
-                "meals_considered": 0,
-                "meals": [],
-            }
-
-        lines = []
-
-        for meal in meals:
-            calories = (
-                f"{number(meal.calories):.0f}"
-                if meal.calories is not None
-                else "unknown"
-            )
-
-            consumed_at = (
-                meal.consumed_at.isoformat()
-                if meal.consumed_at is not None
-                else "time not recorded"
-            )
-
-            lines.append(
-                f"- {meal.food_name} ({meal.meal_type}), "
-                f"portion: {meal.portion or 'not recorded'}, "
-                f"calories: {calories}, "
-                f"logged at: {consumed_at}"
-            )
-
-        structured_meals = [
-            {
-                "food_name": meal.food_name,
-                "meal_type": meal.meal_type,
-                "portion": meal.portion,
-                "calories": number(meal.calories),
-                "protein_g": number(meal.protein_g),
-                "carbs_g": number(meal.carbs_g),
-                "fat_g": number(meal.fat_g),
-                "cost": number(meal.cost),
-                "consumed_at": (
-                    meal.consumed_at.isoformat()
-                    if meal.consumed_at is not None
-                    else None
-                ),
-            }
-            for meal in meals
-        ]
-
-        return {
-            "answer": (
-                "Here are your five most recent logged meals:\n"
-                + "\n".join(lines)
-            ),
-            "model": "sql",
-            "meals_considered": len(meals),
-            "meals": structured_meals,
-        }
-
-    # --------------------------------------------------------
-    # Daily nutrition
-    # --------------------------------------------------------
-
-    if intent == "daily_nutrition":
-
-        now = datetime.now(IST)
-
-        start_ist = datetime.combine(
-            now.date(),
-            time.min,
-            tzinfo=IST,
-        )
-
-        end_ist = start_ist + timedelta(days=1)
-
-        start_utc = start_ist.astimezone(timezone.utc)
-        end_utc = end_ist.astimezone(timezone.utc)
-
-        totals = (
-            db.query(
-                func.sum(MealLog.calories).label("calories"),
-                func.sum(MealLog.protein_g).label("protein"),
-                func.count(MealLog.id).label("meal_count"),
-            )
-            .filter(
-                MealLog.user_id == user_id,
-                MealLog.consumed_at >= start_utc,
-                MealLog.consumed_at < end_utc,
-            )
-            .one()
-        )
-
-        calories = float(totals.calories or 0)
-        protein = float(totals.protein or 0)
-        meal_count = int(totals.meal_count or 0)
-
-        if meal_count == 0:
-            answer = (
-                "You haven't logged any meals today, so I can't calculate "
-                "your intake yet. Log your meals to see your daily totals."
-            )
-        else:
-            answer = (
-                f"Based on {meal_count} logged meal(s) today, your recorded "
-                f"intake is approximately {calories:.0f} calories and "
-                f"{protein:.1f} g of protein. These totals may be incomplete "
-                "if you haven't logged everything you ate."
-            )
-
-        return {
-            "answer": answer,
-            "model": "sql",
-            "meals_considered": meal_count,
-        }
-
-    # --------------------------------------------------------
-    # Meals logged yesterday / today
-    # --------------------------------------------------------
-
-    if intent == "day_meals":
-
-        text = (user_message or "").lower()
-        day_offset = 1 if "yesterday" in text else 0
-
-        target_day = datetime.now(IST).date() - timedelta(days=day_offset)
-
-        start_ist = datetime.combine(
-            target_day,
-            time.min,
-            tzinfo=IST,
-        )
-
-        end_ist = start_ist + timedelta(days=1)
-
-        start_utc = start_ist.astimezone(timezone.utc)
-        end_utc = end_ist.astimezone(timezone.utc)
-
-        day_label = "yesterday" if day_offset else "today"
-        date_label = target_day.strftime("%d %b %Y")
-
-        meals = (
-            db.query(MealLog)
-            .filter(
-                MealLog.user_id == user_id,
-                MealLog.consumed_at >= start_utc,
-                MealLog.consumed_at < end_utc,
-            )
-            .order_by(MealLog.consumed_at.asc())
-            .all()
-        )
-
-        if not meals:
-            return {
-                "answer": (
-                    f"You haven't logged any meals {day_label} "
-                    f"({date_label})."
-                ),
-                "model": "sql",
-                "meals_considered": 0,
-            }
-
-        validated = validate_meals(
-            [
-                {
-                    "food_name": meal.food_name,
-                    "meal_type": meal.meal_type,
-                    "portion": meal.portion,
-                    "calories": number(meal.calories),
-                    "protein_g": number(meal.protein_g),
-                    "carbs_g": number(meal.carbs_g),
-                    "fat_g": number(meal.fat_g),
-                }
-                for meal in meals
-            ]
-        )
-
-        lines = []
-        calories_total = 0.0
-        protein_total = 0.0
-        flagged_count = 0
-
-        for meal in validated:
-            calories = meal.get("calories")
-
-            calories_text = (
-                f"{calories:.0f} kcal"
-                if calories is not None
-                else "calories not recorded"
-            )
-
-            flag = ""
-
-            if meal["data_quality_status"] == "flagged":
-                flagged_count += 1
-                flag = " (flagged: nutrition values look inconsistent)"
-            else:
-                calories_total += calories or 0
-                protein_total += meal.get("protein_g") or 0
-
-            lines.append(
-                f"- {meal['food_name']} ({meal['meal_type']}), "
-                f"portion: {meal['portion'] or 'not recorded'}, "
-                f"{calories_text}{flag}"
-            )
-
-        answer = (
-            f"You logged {len(meals)} meal(s) {day_label} "
-            f"({date_label}):\n" + "\n".join(lines)
-        )
-
-        valid_count = len(meals) - flagged_count
-
-        if valid_count:
-            answer += (
-                f"\n\nTotals from the {valid_count} meal(s) that passed "
-                f"nutrition validation: about {calories_total:.0f} kcal "
-                f"and {protein_total:.1f} g of protein."
-            )
-
-        if flagged_count:
-            answer += (
-                f"\n\n{flagged_count} meal(s) were left out of these "
-                "totals because their recorded nutrition values look "
-                "inconsistent."
-            )
-
-        answer += (
-            "\n\nThese figures cover logged meals only and may not "
-            "reflect everything you ate."
-        )
-
-        return {
-            "answer": answer,
-            "model": "sql",
-            "meals_considered": len(meals),
-        }
-
-    # --------------------------------------------------------
     # Period-based nutrition
     # --------------------------------------------------------
-
     if intent == "period_nutrition":
 
-        period_days = extract_period_days(user_message)
+        today = datetime.now(IST).date()
+
+        start_date, end_date, period_label = resolve_date_range(
+            user_message,
+            today,
+        )
+
+        period_days = (end_date - start_date).days
+        display_end_date = end_date - timedelta(days=1)
+
+        date_label = (
+            f"{start_date.strftime('%d %b %Y')} to "
+            f"{display_end_date.strftime('%d %b %Y')}"
+        )
 
         summary = get_nutrition_summary(
             db=db,
             user_id=user_id,
-            period_days=period_days,
+            start_date=start_date,
+            end_date=end_date,
         )
 
         if not summary:
@@ -1280,14 +1064,14 @@ def get_direct_answer(
 
         if meal_count == 0:
             answer = (
-                f"You haven't logged any meals in the last "
-                f"{period_days} days, so I don't have nutrition "
+                f"You haven't logged any meals between "
+                f"{date_label}, so I don't have nutrition "
                 "data to calculate your intake."
             )
 
         else:
             answer = (
-                f"Over the last {period_days} days, you logged "
+                f"Between {date_label}, you logged "
                 f"{meal_count} meal(s). Of these, {valid_count} "
                 f"passed nutrition validation and {flagged_count} "
                 f"were excluded from the nutrition totals.\n\n"
@@ -1353,10 +1137,6 @@ def get_direct_answer(
             "meals_considered": meal_count,
             "nutrition_summary": summary,
         }
-
-
-        # Build the response using the validated nutrition summary.
-        # Do not calculate totals independently here.
     return None
 
 

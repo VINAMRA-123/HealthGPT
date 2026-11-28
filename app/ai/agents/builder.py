@@ -21,6 +21,8 @@ INTENT_AGENT_MAP = {
     "llm": ["gemini_agent"],
     "period_nutrition": ["nutrition_agent"],
     "day_meals": ["data_agent"],
+    "period_meals": ["data_agent"],
+    "daily_budget": ["data_agent"],
 }
 
 

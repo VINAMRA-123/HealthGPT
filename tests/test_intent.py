@@ -20,6 +20,26 @@ from evals.datasets import ROUTER_CASES
         ("How much of my weekly budget have I spent?", "weekly_budget"),
         ("How much protein this week?", "weekly_protein"),
         ("Compare my protein intake this week with last week", "llm"),
+                # Natural-language variations for meal lookups.
+        ("give my yesterday meals?", "day_meals"),
+        ("what foods did I eat yesterday?", "day_meals"),
+        ("What did I eat today?", "day_meals"),
+        ("Show my meals from yesterday", "day_meals"),
+
+        # Recent food lookup variations.
+        ("give me my last five foods I ate", "recent_meals"),
+        ("show my last 5 foods", "recent_meals"),
+        ("List my latest meals", "recent_meals"),
+        ("Show my recent food history", "recent_meals"),
+
+        # General nutrition questions must not trigger SQL.
+        ("What foods are high in protein?", "llm"),
+        ("Which meal has the highest protein?", "llm"),
+        ("Can I eat pasta today?", "llm"),
+        ("What foods contain healthy fats?", "llm"),
+
+        # Period nutrition.
+        ("How much protein did I consume last week?", "period_nutrition"),
     ],
 )
 def test_key_routing_cases(question, expected):

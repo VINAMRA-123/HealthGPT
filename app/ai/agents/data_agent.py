@@ -10,6 +10,8 @@ DATA_AGENT_INTENTS = {
     "recent_meals",
     "weekly_budget",
     "day_meals",
+    "period_meals",
+    "daily_budget",
 }
 
 

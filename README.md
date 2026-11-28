@@ -302,6 +302,21 @@ The first evaluation found a real bug: the original router matched keywords as s
 
 <!-- Paste your own results here after running `python -m evals.run_evals`. -->
 
+### 5.6a SQL-first answers
+
+Factual questions about the user's own data are answered from the database with no LLM call; Gemini is kept for advice, comparisons and open questions. Handlers live in `app/ai/direct_answers.py`:
+
+| Intent | Example | Notes |
+| --- | --- | --- |
+| `day_meals` | "Did I have breakfast yesterday?", "What did I eat last night?" | filters by meal type; "last night" = 6 PM to 6 AM IST |
+| `period_meals` | "How many meals did I log this week?", "meals from the past seven days" | this week = Mon-Sun, last week = previous Mon-Sun |
+| `recent_meals` | "Show my last 3 meals" | honours the number asked (max 20), times in IST |
+| `daily_nutrition` | "How much protein did I eat yesterday?" | today or yesterday |
+| `daily_budget` | "How much did I spend yesterday?" | compares with the daily budget |
+| `weekly_budget`, `weekly_protein`, `period_nutrition` | | unchanged routes |
+
+Data-quality rule: nutrition totals include only meals that pass `validate_meals`; flagged meals are listed and called out, never silently summed. Costs are summed over all meals, because a nutrition flag does not make the price wrong.
+
 ### 5.7a Scope guardrail (off-topic questions)
 
 HealthGPT only answers nutrition, food, fitness and meal/budget-tracking questions. Anything else (celebrity tours, sports, coding, politics, finance, poems...) gets a fixed refusal.

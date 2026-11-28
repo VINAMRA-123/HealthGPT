@@ -10,10 +10,29 @@ Intents:
     recent_meals      list of recently logged meals       -> SQL
     weekly_budget     spending against the weekly budget  -> SQL
     weekly_protein    protein this week                   -> SQL
+    day_meals         meals logged on a day / last night   -> SQL
+    period_meals      meals over a week or N days          -> SQL
+    daily_budget      spending today or yesterday          -> SQL
     llm               reasoning, advice, general nutrition-> Gemini
 """
 
 ROUTER_CASES: list[dict[str, str]] = [
+    # ---- day / period lookups and daily spending -------------------------
+    {"question": "Did I have breakfast yesterday?", "expected": "day_meals"},
+    {"question": "Have I logged lunch today?", "expected": "day_meals"},
+    {"question": "Show my food log from yesterday.", "expected": "day_meals"},
+    {"question": "What did I eat last night?", "expected": "day_meals"},
+    {"question": "How many meals did I have today?", "expected": "day_meals"},
+    {"question": "How many meals did I log this week?", "expected": "period_meals"},
+    {"question": "Give me meals from the past seven days.", "expected": "period_meals"},
+    {"question": "What foods did I eat this week?", "expected": "period_meals"},
+    {"question": "How much protein did I consume yesterday?", "expected": "daily_nutrition"},
+    {"question": "How many calories did I eat yesterday?", "expected": "daily_nutrition"},
+    {"question": "How much did I spend yesterday?", "expected": "daily_budget"},
+    {"question": "How much did I spend today?", "expected": "daily_budget"},
+    {"question": "Can I spend more today?", "expected": "llm"},
+    {"question": "Compare my last five meals by protein.", "expected": "llm"},
+    {"question": "Why am I hungry after eating?", "expected": "llm"},
     # ---- daily_nutrition ---------------------------------------------------
     {"question": "How many calories have I eaten today?", "expected": "daily_nutrition"},
     {"question": "How much protein did I consume today?", "expected": "daily_nutrition"},
@@ -33,6 +52,7 @@ ROUTER_CASES: list[dict[str, str]] = [
     {"question": "How many carbs in the last 10 days?", "expected": "period_nutrition"},
     {"question": "How much fat have I eaten recently?", "expected": "period_nutrition"},
     {"question": "protein intake over the past 2 weeks", "expected": "period_nutrition"},
+    {"question": "How much protein did I consume last week?", "expected": "period_nutrition"},
     # ---- recent_meals ------------------------------------------------------
     {"question": "Show my latest logged meals", "expected": "recent_meals"},
     {"question": "What did I eat recently?", "expected": "recent_meals"},
@@ -40,6 +60,10 @@ ROUTER_CASES: list[dict[str, str]] = [
     {"question": "meal history", "expected": "recent_meals"},
     {"question": "What foods have I logged lately?", "expected": "recent_meals"},
     {"question": "Show my food history", "expected": "recent_meals"},
+    {"question": "give me my last five foods I ate", "expected": "recent_meals"},
+    {"question": "show my last 5 foods", "expected": "recent_meals"},
+    {"question": "List my latest meals", "expected": "recent_meals"},
+    {"question": "Show my recent food history", "expected": "recent_meals"},
     # ---- weekly_budget -----------------------------------------------------
     {"question": "How much of my weekly budget have I spent?", "expected": "weekly_budget"},
     {"question": "What's my remaining budget?", "expected": "weekly_budget"},
@@ -57,6 +81,10 @@ ROUTER_CASES: list[dict[str, str]] = [
     {"question": "How many meals did I log yesterday?", "expected": "day_meals"},
     {"question": "How many meals have I logged today?", "expected": "day_meals"},
     {"question": "How many calories did I have yesterday?", "expected": "day_meals"},
+    {"question": "give my yesterday meals?", "expected": "day_meals"},
+    {"question": "what foods did I eat yesterday?", "expected": "day_meals"},
+    {"question": "Show my meals from yesterday", "expected": "day_meals"},
+    {"question": "What did I eat today?", "expected": "day_meals"},
     # ---- daily_nutrition: phrasing found while testing ---------------------
     {"question": "Show my nutrition summary today", "expected": "daily_nutrition"},
     # ---- llm: advice with a day word must NOT be answered from SQL ---------
@@ -77,6 +105,9 @@ ROUTER_CASES: list[dict[str, str]] = [
     {"question": "How many calories should I eat per day?", "expected": "llm"},
     {"question": "How much protein should I eat today?", "expected": "llm"},
     {"question": "Is it okay to eat late at night?", "expected": "llm"},
+    {"question": "What foods are high in protein?", "expected": "llm"},
+    {"question": "Which meal has the highest protein?", "expected": "llm"},
+    {"question": "What foods contain healthy fats?", "expected": "llm"},
     # ---- llm: the cases the old substring router got wrong -----------------
     # "past" inside "pasta"
     {"question": "How many calories are in pasta?", "expected": "llm"},
