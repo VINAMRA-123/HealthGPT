@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 DATA_AGENT_INTENTS = {
     "recent_meals",
     "weekly_budget",
+    "day_meals",
 }
 
 

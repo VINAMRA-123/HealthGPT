@@ -6,7 +6,7 @@ from typing import Any, Callable, TypedDict
 import httpx
 from google import genai
 from google.genai import types
-from google.genai.errors import ServerError
+from google.genai.errors import ClientError, ServerError
 from langgraph.graph import END, START, StateGraph
 
 from app.ai.tracing import annotate_run, traceable
@@ -331,16 +331,20 @@ def build_chat_workflow():
                         "model": model_name,
                     }
 
-            except ServerError as exc:
+            except (ClientError, ServerError) as exc:
+                # ClientError covers 4xx responses. A 429 (rate limit or
+                # quota) is a ClientError, so it must be caught here for the
+                # fallback model to be tried at all.
                 status_code = (
                     getattr(exc, "code", None)
                     or getattr(exc, "status_code", None)
                 )
 
                 logger.warning(
-                    "Gemini model %s failed with HTTP %s",
+                    "Gemini model %s failed with HTTP %s: %s",
                     model_name,
                     status_code,
+                    str(exc)[:300],
                     exc_info=True,
                 )
 

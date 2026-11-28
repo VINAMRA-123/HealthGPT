@@ -52,6 +52,16 @@ ROUTER_CASES: list[dict[str, str]] = [
     {"question": "weekly protein intake", "expected": "weekly_protein"},
     {"question": "Protein I've eaten this week", "expected": "weekly_protein"},
     {"question": "Did I meet my protein goal this week?", "expected": "weekly_protein"},
+    # ---- day_meals: found while testing the deployed app -------------------
+    {"question": "What did I eat yesterday?", "expected": "day_meals"},
+    {"question": "How many meals did I log yesterday?", "expected": "day_meals"},
+    {"question": "How many meals have I logged today?", "expected": "day_meals"},
+    {"question": "How many calories did I have yesterday?", "expected": "day_meals"},
+    # ---- daily_nutrition: phrasing found while testing ---------------------
+    {"question": "Show my nutrition summary today", "expected": "daily_nutrition"},
+    # ---- llm: advice with a day word must NOT be answered from SQL ---------
+    {"question": "Can I eat rice today?", "expected": "llm"},
+    {"question": "What should I eat today?", "expected": "llm"},
     # ---- llm: reasoning, advice and general knowledge ----------------------
     {"question": "Which of my recent meals had the most protein?", "expected": "llm"},
     {"question": "Compare my protein intake this week with last week", "expected": "llm"},

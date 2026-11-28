@@ -20,6 +20,7 @@ INTENT_AGENT_MAP = {
     "weekly_protein": ["nutrition_agent"],
     "llm": ["gemini_agent"],
     "period_nutrition": ["nutrition_agent"],
+    "day_meals": ["data_agent"],
 }
 
 
@@ -207,6 +208,8 @@ def build_health_graph(
                     {
                         "agent": "gemini_agent",
                         "error": type(exc).__name__,
+                        "code": getattr(exc, "code", None),
+                        "detail": str(exc)[:200],
                     }
                 ],
                 "completed_agents": ["gemini_agent"],
@@ -239,6 +242,17 @@ def build_health_graph(
 
                 answer = "Please enter a question."
                 model = "none"
+
+            elif any(
+                isinstance(error, dict) and error.get("code") == 429
+                for error in errors
+            ):
+
+                answer = (
+                    "The AI service is busy right now. "
+                    "Please try again in a minute."
+                )
+                model = "error"
 
             elif errors:
 

@@ -110,6 +110,37 @@ DAILY_PHRASES = (
     "how much protein did i consume today",
 )
 
+NUTRITION_SUMMARY = (
+    "nutrition summary",
+    "nutritional summary",
+    "summary of my nutrition",
+    "my nutrition",
+)
+
+# "yesterday" / "today" questions about which meals were logged. Phrases are
+# past-tense lookups on purpose, so advice such as "Can I eat rice today?"
+# still goes to the LLM.
+DAY_WORDS = ("yesterday", "yesterday's", "today", "today's")
+
+DAY_MEAL_PHRASES = (
+    "did i eat",
+    "did i log",
+    "did i have",
+    "have i eaten",
+    "have i logged",
+    "have i had",
+    "i ate",
+    "i logged",
+    "i had",
+    "i've eaten",
+    "i've logged",
+    "how many meals",
+    "how many foods",
+    "my meals",
+    "show my meals",
+    "list my meals",
+)
+
 
 @lru_cache(maxsize=None)
 def _pattern(terms: tuple[str, ...], prefix: bool) -> re.Pattern:
@@ -126,8 +157,8 @@ def _has(text: str, terms: tuple[str, ...], *, prefix: bool = False) -> bool:
 
 
 def classify_intent(message: str) -> str:
-    """Return one of: daily_nutrition, period_nutrition, recent_meals,
-    weekly_budget, weekly_protein, llm."""
+    """Return one of: daily_nutrition, period_nutrition, day_meals,
+    recent_meals, weekly_budget, weekly_protein, llm."""
     if not isinstance(message, str):
         return "llm"
 
@@ -142,8 +173,18 @@ def classify_intent(message: str) -> str:
     if has_nutrient and _has(text, TODAY) and _has(text, INTAKE):
         return "daily_nutrition"
 
+    if _has(text, NUTRITION_SUMMARY) and _has(text, TODAY):
+        return "daily_nutrition"
+
     if has_nutrient and _has(text, PERIOD) and _has(text, PERIOD_INTAKE):
         return "period_nutrition"
+
+    if (
+        _has(text, DAY_WORDS)
+        and _has(text, DAY_MEAL_PHRASES)
+        and not _has(text, BUDGET)
+    ):
+        return "day_meals"
 
     if _has(text, MEALS) and _has(text, RECENT_TIME):
         return "recent_meals"

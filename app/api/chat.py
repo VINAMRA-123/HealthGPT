@@ -58,6 +58,11 @@ IST = ZoneInfo("Asia/Kolkata")
 # the biggest part of the prompt (and of the latency).
 MAX_OLD_ASSISTANT_CHARS = 600
 
+# Assistant replies saved with these model labels are failures or placeholders
+# ("I couldn't retrieve ..."). They are not sent back to Gemini as if they were
+# real answers.
+FAILED_REPLY_MODELS = ("error", "none")
+
 
 # ============================================================
 # GEMINI TOOL DECLARATIONS
@@ -218,6 +223,27 @@ def build_gemini_contents(
         if isinstance(item, dict):
             return item.get(name)
         return getattr(item, name, None)
+
+    # Drop failed turns and the question that caused them, so error messages
+    # do not pollute the conversation the model sees.
+    cleaned_history = []
+
+    for item in history:
+        if (
+            _field(item, "role") in ("assistant", "model")
+            and _field(item, "model") in FAILED_REPLY_MODELS
+        ):
+            if (
+                cleaned_history
+                and _field(cleaned_history[-1], "role") == "user"
+            ):
+                cleaned_history.pop()
+
+            continue
+
+        cleaned_history.append(item)
+
+    history = cleaned_history
 
     last_assistant_index = max(
         (
@@ -1100,7 +1126,130 @@ def get_direct_answer(
             "model": "sql",
             "meals_considered": meal_count,
         }
-        # --------------------------------------------------------
+
+    # --------------------------------------------------------
+    # Meals logged yesterday / today
+    # --------------------------------------------------------
+
+    if intent == "day_meals":
+
+        text = (user_message or "").lower()
+        day_offset = 1 if "yesterday" in text else 0
+
+        target_day = datetime.now(IST).date() - timedelta(days=day_offset)
+
+        start_ist = datetime.combine(
+            target_day,
+            time.min,
+            tzinfo=IST,
+        )
+
+        end_ist = start_ist + timedelta(days=1)
+
+        start_utc = start_ist.astimezone(timezone.utc)
+        end_utc = end_ist.astimezone(timezone.utc)
+
+        day_label = "yesterday" if day_offset else "today"
+        date_label = target_day.strftime("%d %b %Y")
+
+        meals = (
+            db.query(MealLog)
+            .filter(
+                MealLog.user_id == user_id,
+                MealLog.consumed_at >= start_utc,
+                MealLog.consumed_at < end_utc,
+            )
+            .order_by(MealLog.consumed_at.asc())
+            .all()
+        )
+
+        if not meals:
+            return {
+                "answer": (
+                    f"You haven't logged any meals {day_label} "
+                    f"({date_label})."
+                ),
+                "model": "sql",
+                "meals_considered": 0,
+            }
+
+        validated = validate_meals(
+            [
+                {
+                    "food_name": meal.food_name,
+                    "meal_type": meal.meal_type,
+                    "portion": meal.portion,
+                    "calories": number(meal.calories),
+                    "protein_g": number(meal.protein_g),
+                    "carbs_g": number(meal.carbs_g),
+                    "fat_g": number(meal.fat_g),
+                }
+                for meal in meals
+            ]
+        )
+
+        lines = []
+        calories_total = 0.0
+        protein_total = 0.0
+        flagged_count = 0
+
+        for meal in validated:
+            calories = meal.get("calories")
+
+            calories_text = (
+                f"{calories:.0f} kcal"
+                if calories is not None
+                else "calories not recorded"
+            )
+
+            flag = ""
+
+            if meal["data_quality_status"] == "flagged":
+                flagged_count += 1
+                flag = " (flagged: nutrition values look inconsistent)"
+            else:
+                calories_total += calories or 0
+                protein_total += meal.get("protein_g") or 0
+
+            lines.append(
+                f"- {meal['food_name']} ({meal['meal_type']}), "
+                f"portion: {meal['portion'] or 'not recorded'}, "
+                f"{calories_text}{flag}"
+            )
+
+        answer = (
+            f"You logged {len(meals)} meal(s) {day_label} "
+            f"({date_label}):\n" + "\n".join(lines)
+        )
+
+        valid_count = len(meals) - flagged_count
+
+        if valid_count:
+            answer += (
+                f"\n\nTotals from the {valid_count} meal(s) that passed "
+                f"nutrition validation: about {calories_total:.0f} kcal "
+                f"and {protein_total:.1f} g of protein."
+            )
+
+        if flagged_count:
+            answer += (
+                f"\n\n{flagged_count} meal(s) were left out of these "
+                "totals because their recorded nutrition values look "
+                "inconsistent."
+            )
+
+        answer += (
+            "\n\nThese figures cover logged meals only and may not "
+            "reflect everything you ate."
+        )
+
+        return {
+            "answer": answer,
+            "model": "sql",
+            "meals_considered": len(meals),
+        }
+
+    # --------------------------------------------------------
     # Period-based nutrition
     # --------------------------------------------------------
 
